@@ -339,7 +339,15 @@ project/plugins/project/
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
-verilog
+verilog/*.txt
+verilog/basys3/*
+verilog/pynq/*
+verilog/verilator/*
+!verilog/basys3/test.v
+!verilog/pynq/design_1_wrapper.v
+!verilog/pynq/test.v
+!verilog/pynq/TMDS_PLLVR.v
+!verilog/verilator/sim_main.cpp
 *.jou
 *.log
 .Xil
