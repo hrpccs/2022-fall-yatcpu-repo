@@ -14,21 +14,21 @@
 
 package board.pynq
 
-import bus.{AXI4LiteChannels, AXI4LiteInterface, BusArbiter, BusSwitch}
+import bus.{BusArbiter, BusSwitch}
 import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util.{Cat, is, switch}
 import peripheral._
-import riscv.{ImplementationType, Parameters}
-import riscv.core.{CPU, CPUBundle}
+import riscv.Parameters
+import riscv.core.CPU
 
 object BootStates extends ChiselEnum {
-  val Init, Loading, BusWait, Finished = Value
+  val Init, Loading, Finished = Value
 }
 
 class Top extends Module {
-  val binaryFilename = "litenes.asmbin"
+  val binaryFilename = "tetris.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
@@ -36,44 +36,24 @@ class Top extends Module {
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
 
-    val axi_mem = new AXI4LiteInterface(32, 32)
-
     val tx = Output(Bool())
     val rx = Input(Bool())
 
     val led = Output(UInt(4.W))
   })
+  io.led := 15.U(4.W)
   val boot_state = RegInit(BootStates.Init)
-  io.led := boot_state.asUInt
+
   val uart = Module(new Uart(125000000, 115200))
   io.tx := uart.io.txd
   uart.io.rxd := io.rx
 
   val cpu = Module(new CPU)
-  val mem = Wire(new AXI4LiteChannels(32, 32))
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val timer = Module(new Timer)
   val dummy = Module(new DummySlave)
   val bus_arbiter = Module(new BusArbiter)
   val bus_switch = Module(new BusSwitch)
-  mem.write_address_channel.AWADDR <> io.axi_mem.AWADDR
-  mem.write_address_channel.AWPROT <> io.axi_mem.AWPROT
-  mem.write_address_channel.AWREADY <> io.axi_mem.AWREADY
-  mem.write_address_channel.AWVALID <> io.axi_mem.AWVALID
-  mem.read_address_channel.ARADDR <> io.axi_mem.ARADDR
-  mem.read_address_channel.ARPROT <> io.axi_mem.ARPROT
-  mem.read_address_channel.ARREADY <> io.axi_mem.ARREADY
-  mem.read_address_channel.ARVALID <> io.axi_mem.ARVALID
-  mem.read_data_channel.RDATA <> io.axi_mem.RDATA
-  mem.read_data_channel.RVALID <> io.axi_mem.RVALID
-  mem.read_data_channel.RRESP <> io.axi_mem.RRESP
-  mem.read_data_channel.RREADY <> io.axi_mem.RREADY
-  mem.write_data_channel.WDATA <> io.axi_mem.WDATA
-  mem.write_data_channel.WVALID <> io.axi_mem.WVALID
-  mem.write_data_channel.WSTRB <> io.axi_mem.WSTRB
-  mem.write_data_channel.WREADY <> io.axi_mem.WREADY
-  mem.write_response_channel.BVALID <> io.axi_mem.BVALID
-  mem.write_response_channel.BRESP <> io.axi_mem.BRESP
-  mem.write_response_channel.BREADY <> io.axi_mem.BREADY
 
   val instruction_rom = Module(new InstructionROM(binaryFilename))
   val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
@@ -92,50 +72,34 @@ class Top extends Module {
   instruction_rom.io.address := rom_loader.io.rom_address
   cpu.io.stall_flag_bus := true.B
   cpu.io.instruction_valid := false.B
+  bus_switch.io.slaves(0) <> mem.io.channels
   rom_loader.io.channels <> dummy.io.channels
-  bus_switch.io.slaves(0) <> mem
   switch(boot_state) {
     is(BootStates.Init) {
       rom_loader.io.load_start := true.B
       boot_state := BootStates.Loading
-      rom_loader.io.channels <> mem
-      bus_switch.io.slaves(0) <> dummy.io.channels
+      rom_loader.io.channels <> mem.io.channels
     }
     is(BootStates.Loading) {
       rom_loader.io.load_start := false.B
-      rom_loader.io.channels <> mem
-      bus_switch.io.slaves(0) <> dummy.io.channels
+      rom_loader.io.channels <> mem.io.channels
       when(rom_loader.io.load_finished) {
-        boot_state := BootStates.BusWait
-      }
-    }
-    is(BootStates.BusWait) {
-      when(!cpu.io.bus_busy) {
         boot_state := BootStates.Finished
       }
     }
     is(BootStates.Finished) {
       cpu.io.stall_flag_bus := false.B
       cpu.io.instruction_valid := true.B
-      rom_loader.io.channels <> dummy.io.channels
-      bus_switch.io.slaves(0) <> mem
     }
   }
-
-  val display = Module(new PixelDisplay)
-  bus_switch.io.slaves(1) <> display.io.channels
+  bus_switch.io.slaves(1) <> hdmi_display.io.channels
   bus_switch.io.slaves(2) <> uart.io.channels
   bus_switch.io.slaves(4) <> timer.io.channels
 
-  cpu.io.interrupt_flag := uart.io.signal_interrupt ## timer.io.signal_interrupt
-  io.led := uart.io.signal_interrupt ## timer.io.signal_interrupt ## boot_state.asUInt
+  cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
 
   cpu.io.debug_read_address := 0.U
-
-  display.io.x := hdmi_display.io.x_next
-  display.io.y := hdmi_display.io.y_next
-  display.io.video_on := hdmi_display.io.video_on
-  hdmi_display.io.rgb := display.io.rgb
+  mem.io.debug_read_address := 0.U
 
   io.hdmi_hpdn := 1.U
   io.hdmi_data_n := hdmi_display.io.TMDSdata_n
