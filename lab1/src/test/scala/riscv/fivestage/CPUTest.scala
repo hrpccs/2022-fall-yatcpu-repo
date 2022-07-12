@@ -15,13 +15,12 @@
 package riscv.fivestage
 
 import board.basys3.BootStates
-import bus.BusSwitch
 import chisel3._
 import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{DummySlave, Memory, ROMLoader}
-import riscv.core.fivestage.{CPU, ProgramCounter}
+import peripheral.Memory
+import riscv.core.{CPU, ProgramCounter}
 import riscv.{Parameters, TestAnnotations}
 
 import java.nio.{ByteBuffer, ByteOrder}

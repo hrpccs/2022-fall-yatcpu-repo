@@ -18,7 +18,7 @@ import bus.{AXI4LiteMaster, AXI4LiteMasterBundle, AXI4LiteSlave, AXI4LiteSlaveBu
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{Memory, ROMLoader}
+import peripheral.Memory
 
 class TimerTest extends AnyFlatSpec with ChiselScalatestTester {
   class TestTimerLimit extends Module {

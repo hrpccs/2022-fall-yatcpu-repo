@@ -21,7 +21,6 @@ import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util.{Cat, is, switch}
 import peripheral._
 import riscv.{ImplementationType, Parameters}
-import riscv.core.{CPU, CPUBundle}
 
 object BootStates extends ChiselEnum {
   val Init, Loading, BusWait, Finished = Value

@@ -14,34 +14,27 @@
 
 package peripheral
 
-import bus.{AXI4LiteChannels, AXI4LiteSlave}
 import chisel3._
-import chisel3.util.log2Up
-import riscv.Parameters
 
 class PixelDisplay extends Module {
   val io = IO(new Bundle() {
-    val channels = Flipped(new AXI4LiteChannels(32, Parameters.DataBits))
-
+    val bundle = new RAMBundle()
     val x = Input(UInt(16.W))
     val y = Input(UInt(16.W))
     val video_on = Input(Bool())
 
     val rgb = Output(UInt(24.W))
   })
-  val slave = Module(new AXI4LiteSlave(32, Parameters.DataBits))
-  slave.io.channels <> io.channels
 
   // 320x240, RGB 565
   val mem = Module(new BlockRAM(320 * 240 / 2))
-  slave.io.bundle.read_valid := true.B
-  mem.io.write_enable := slave.io.bundle.write
-  mem.io.write_data := slave.io.bundle.write_data
-  mem.io.write_address := slave.io.bundle.address
-  mem.io.write_strobe := slave.io.bundle.write_strobe
+  mem.io.write_enable := io.bundle.write_enable
+  mem.io.write_data := io.bundle.write_data
+  mem.io.write_address := io.bundle.address
+  mem.io.write_strobe := io.bundle.write_strobe
 
-  mem.io.read_address := slave.io.bundle.address
-  slave.io.bundle.read_data := mem.io.read_data
+  mem.io.read_address := io.bundle.address
+  io.bundle.read_data := mem.io.read_data
 
 
   val pixel_x = io.x(15, 1).asUInt

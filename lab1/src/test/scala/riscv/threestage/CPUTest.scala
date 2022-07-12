@@ -20,7 +20,7 @@ import chisel3._
 import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{DummySlave, Memory, ROMLoader}
+import peripheral.Memory
 import riscv.core.threestage.{CPU, ProgramCounter}
 import riscv.{Parameters, TestAnnotations}
 

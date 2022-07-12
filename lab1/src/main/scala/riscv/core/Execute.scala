@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.fivestage
+package riscv.core
 
 import chisel3._
 import chisel3.experimental.ChiselEnum
@@ -32,14 +32,8 @@ class Execute extends Module {
     val immediate = Input(UInt(Parameters.DataWidth))
     val aluop1_source = Input(UInt(1.W))
     val aluop2_source = Input(UInt(1.W))
-    val csr_read_data = Input(UInt(Parameters.DataWidth))
-    val forward_from_mem = Input(UInt(Parameters.DataWidth))
-    val forward_from_wb = Input(UInt(Parameters.DataWidth))
-    val aluop1_forward = Input(UInt(2.W))
-    val aluop2_forward = Input(UInt(2.W))
 
     val mem_alu_result = Output(UInt(Parameters.DataWidth))
-    val csr_write_data = Output(UInt(Parameters.DataWidth))
   })
 
   val opcode = io.instruction(6, 0)
@@ -58,34 +52,12 @@ class Execute extends Module {
   alu.io.op1 := Mux(
     io.aluop1_source === ALUOp1Source.InstructionAddress,
     io.instruction_address,
-    MuxLookup(
-      io.aluop1_forward,
-      io.reg1_data,
-      IndexedSeq(
-        ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-        ForwardingType.ForwardFromWB -> io.forward_from_wb
-      )
-    )
+    io.reg1_data,
   )
   alu.io.op2 := Mux(
     io.aluop2_source === ALUOp2Source.Immediate,
     io.immediate,
-    MuxLookup(
-      io.aluop2_forward,
-      io.reg2_data,
-      IndexedSeq(
-        ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-        ForwardingType.ForwardFromWB -> io.forward_from_wb
-      )
-    )
+    io.reg2_data,
   )
   io.mem_alu_result := alu.io.result
-  io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
-    InstructionsTypeCSR.csrrw -> io.reg1_data,
-    InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~io.reg1_data).asUInt),
-    InstructionsTypeCSR.csrrs -> io.csr_read_data.|(io.reg1_data),
-    InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
-    InstructionsTypeCSR.csrrci -> io.csr_read_data.&((~Cat(0.U(27.W), uimm)).asUInt),
-    InstructionsTypeCSR.csrrsi -> io.csr_read_data.|(Cat(0.U(27.W), uimm)),
-  ))
 }

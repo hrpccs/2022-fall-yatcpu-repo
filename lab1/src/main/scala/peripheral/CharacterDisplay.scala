@@ -15,7 +15,6 @@
 package peripheral
 
 import chisel3._
-import bus.{AXI4LiteChannels, AXI4LiteSlave}
 import chisel3.{Bool, Bundle, Flipped, Module, Mux, Output, UInt, Wire}
 import chisel3.util.{MuxLookup, log2Up}
 import peripheral.ScreenInfo.{DisplayHorizontal, DisplayVertical}
@@ -41,25 +40,23 @@ object CharacterBufferInfo {
 
 class CharacterDisplay extends Module {
   val io = IO(new Bundle() {
-    val channels = Flipped(new AXI4LiteChannels(log2Up(CharacterBufferInfo.Chars), Parameters.DataBits))
-
+    val bundle = new RAMBundle()
+    
     val x = Input(UInt(16.W))
     val y = Input(UInt(16.W))
     val video_on = Input(Bool())
 
     val rgb = Output(UInt(24.W))
   })
-  val slave = Module(new AXI4LiteSlave(log2Up(CharacterBufferInfo.Chars), Parameters.DataBits))
-  slave.io.channels <> io.channels
+  
   val mem = Module(new BlockRAM(CharacterBufferInfo.Chars / Parameters.WordSize))
-  slave.io.bundle.read_valid := true.B
-  mem.io.write_enable := slave.io.bundle.write
-  mem.io.write_data := slave.io.bundle.write_data
-  mem.io.write_address := slave.io.bundle.address
-  mem.io.write_strobe := slave.io.bundle.write_strobe
+  mem.io.write_enable := io.bundle.write_enable
+  mem.io.write_data := io.bundle.write_data
+  mem.io.write_address := io.bundle.address
+  mem.io.write_strobe := io.bundle.write_strobe
 
-  mem.io.read_address := slave.io.bundle.address
-  slave.io.bundle.read_data := mem.io.read_data
+  mem.io.read_address := io.bundle.address
+  io.bundle.read_data := mem.io.read_data
 
 
   val font_rom = Module(new FontROM)

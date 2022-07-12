@@ -18,7 +18,7 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import riscv.TestAnnotations
-import riscv.core.fivestage.RegisterFile
+import riscv.core.RegisterFile
 
 class RegisterFileTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Register File of Five-stage CPU"

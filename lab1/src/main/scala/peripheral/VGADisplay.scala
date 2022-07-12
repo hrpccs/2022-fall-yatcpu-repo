@@ -111,7 +111,6 @@ class VGASync extends Module {
 
 class VGADisplay extends Module {
   val io = IO(new Bundle() {
-    val rgb = Input(UInt(24.W))
     val x = Output(UInt(16.W))
     val y = Output(UInt(16.W))
     val video_on = Output(Bool())

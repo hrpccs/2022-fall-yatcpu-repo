@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.fivestage
+package riscv.core
 
 import chisel3._
 import chisel3.util._
@@ -138,8 +138,6 @@ class InstructionDecode extends Module {
     val instruction_address = Input(UInt(Parameters.AddrWidth))
     val reg1_data = Input(UInt(Parameters.DataWidth))
     val reg2_data = Input(UInt(Parameters.DataWidth))
-    val interrupt_assert = Input(Bool())
-    val interrupt_handler_address = Input(UInt(Parameters.AddrWidth))
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
@@ -153,8 +151,7 @@ class InstructionDecode extends Module {
     val ex_reg_write_source = Output(UInt(2.W))
     val ex_reg_write_enable = Output(Bool())
     val ex_reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val ex_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
-    val ex_csr_write_enable = Output(Bool())
+
     val if_jump_flag = Output(Bool())
     val if_jump_address = Output(UInt(Parameters.AddrWidth))
   })
@@ -201,7 +198,6 @@ class InstructionDecode extends Module {
     RegWriteSource.ALUResult,
     IndexedSeq(
       InstructionTypes.L -> RegWriteSource.Memory,
-      Instructions.csr -> RegWriteSource.CSR,
       Instructions.jal -> RegWriteSource.NextInstructionAddress,
       Instructions.jalr -> RegWriteSource.NextInstructionAddress
     )
@@ -210,14 +206,7 @@ class InstructionDecode extends Module {
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
     (opcode === Instructions.jal) || (opcode === Instructions.jalr) || (opcode === Instructions.csr)
   io.ex_reg_write_address := io.instruction(11, 7)
-  io.ex_csr_address := io.instruction(31, 20)
-  io.ex_csr_write_enable := (opcode === Instructions.csr) && (
-    funct3 === InstructionsTypeCSR.csrrw || funct3 === InstructionsTypeCSR.csrrwi ||
-      funct3 === InstructionsTypeCSR.csrrs || funct3 === InstructionsTypeCSR.csrrsi ||
-      funct3 === InstructionsTypeCSR.csrrc || funct3 === InstructionsTypeCSR.csrrci
-    )
-  io.if_jump_flag := io.interrupt_assert ||
-    (opcode === Instructions.jal) ||
+  io.if_jump_flag := opcode === Instructions.jal ||
     (opcode === Instructions.jalr) ||
     (opcode === InstructionTypes.B) && MuxLookup(
       funct3,
@@ -231,8 +220,5 @@ class InstructionDecode extends Module {
         InstructionsTypeB.bgeu -> (io.reg1_data.asUInt >= io.reg2_data.asUInt)
       )
     )
-  io.if_jump_address := Mux(io.interrupt_assert,
-    io.interrupt_handler_address,
-    io.ex_immediate + Mux(opcode === Instructions.jalr, io.reg1_data, io.instruction_address)
-  )
+  io.if_jump_address := io.ex_immediate + Mux(opcode === Instructions.jalr, io.reg1_data, io.instruction_address)
 }
