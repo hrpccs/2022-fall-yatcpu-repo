@@ -51,9 +51,6 @@ class ROMLoader(capacity: Int) extends Module {
   master.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
   master.io.bundle.address := 0.U
 
-  when(!loading && !master.io.bundle.busy && address >= (capacity - 1).U) {
-    io.load_finished := true.B
-  }
   when(loading) {
     valid := true.B
     when(!master.io.bundle.busy && !master.io.bundle.write_valid) {
@@ -67,6 +64,7 @@ class ROMLoader(capacity: Int) extends Module {
     when(master.io.bundle.write_valid) {
       when(address >= (capacity - 1).U) {
         loading := false.B
+        io.load_finished := true.B
       }.otherwise {
         loading := true.B
         address := address + 1.U
@@ -74,6 +72,7 @@ class ROMLoader(capacity: Int) extends Module {
       }
     }.otherwise {
       address := address
+      loading := true.B
     }
   }
   io.rom_address := address

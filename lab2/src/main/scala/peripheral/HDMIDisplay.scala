@@ -28,8 +28,6 @@ class HDMISync extends Module {
     val f_tick = Output(Bool())
     val x = Output(UInt(10.W))
     val y = Output(UInt(10.W))
-    val x_next = Output(UInt(10.W))
-    val y_next = Output(UInt(10.W))
   })
 
   val DisplayHorizontal = ScreenInfo.DisplayHorizontal
@@ -97,8 +95,6 @@ class HDMISync extends Module {
   io.vsync := vsync_reg
   io.x := h_count_reg
   io.y := v_count_reg
-  io.x_next := h_count_next
-  io.y_next := v_count_next
   io.p_tick := pixel_tick
   io.f_tick := io.x === 0.U && io.y === 0.U
 }
@@ -111,44 +107,38 @@ class TMDS_encoder extends Module {
     val TMDS = Output(UInt(10.W))
   })
   val Nb1s = PopCount(io.video_data)
+  val XNOR = Wire(Bool())
+  XNOR := (Nb1s > 4.U(4.W)) || (Nb1s === 4.U(4.W) && io.video_data(0) === 0.U)
 
-  def xorfct(value: UInt): UInt = {
-    val vin = VecInit(value.asBools)
-    val res = VecInit(511.U.asBools)
-    res(0) := vin(0)
-    for(i <- 1 to 7){
-      res(i) := res(i-1) ^ vin(i)
+  //using recursion to compute
+  def xorfunc(value: UInt): UInt = {
+    value.getWidth match {
+      case 1 => value(0)
+      case s => val res = xorfunc(VecInit(value.asBools.drop(1)).asUInt)
+        value.asBools.head ^ res.asBools.head ## res
     }
-    res(8) := 1.U
-    res.asUInt
   }
 
-  val xored = xorfct(io.video_data)
+  val xored = 1.U(1.W) ## xorfunc(io.video_data)
 
-  def xnorfct(value: UInt): UInt = {
-    val vin = VecInit(value.asBools)
-    val res = VecInit(511.U.asBools)
-    res(0) := vin(0)
-    for(i <- 1 to 7){
-      res(i) := !(res(i-1) ^ vin(i))
+  def xnorfunc(value: UInt): UInt = {
+    value.getWidth match {
+      case 1 => value(0)
+      case s => val res = xnorfunc(VecInit(value.asBools.drop(1)).asUInt)
+        !(value.asBools.head ^ res.asBools.head) ## res
     }
-    res(8) := 0.U
-    res.asUInt
   }
 
-  val xnored = xnorfct(io.video_data)
+  val xnored = 0.U(1.W) ## xnorfunc(io.video_data)
 
-  val XNOR = (Nb1s > 4.U(4.W)) || (Nb1s === 4.U(4.W) && io.video_data(0) === 0.U)
-  val q_m = RegInit(0.U(9.W))
-  q_m := Mux(
+  val q_m = Mux(
     XNOR,
     xnored,
     xored
   )
 
-  val diffSize = 4
-  val diff = RegInit(0.S(diffSize.W))
-  diff := PopCount(q_m).asSInt - 4.S
+  val diff = PopCount(q_m).asSInt - 4.S
+  val diffSize = diff.getWidth
 
   val disparitySize = 4
   val disparityReg = RegInit(0.S(disparitySize.W))
@@ -200,40 +190,64 @@ class TMDS_encoder extends Module {
 
 class HDMIDisplay extends Module {
   val io = IO(new Bundle() {
-    val rgb = Input(UInt(24.W))
-    val x = Output(UInt(16.W))
-    val y = Output(UInt(16.W))
-    val x_next = Output(UInt(16.W))
-    val y_next = Output(UInt(16.W))
-    val video_on = Output(Bool())
+    val channels = Flipped(new AXI4LiteChannels(log2Up(ScreenInfo.Chars), Parameters.DataBits))
 
     val TMDSclk_p = Output(Bool())
     val TMDSdata_p = Output(UInt(3.W))
     val TMDSclk_n = Output(Bool())
     val TMDSdata_n = Output(UInt(3.W))
+
   })
-  val rgb = io.rgb
+  val slave = Module(new AXI4LiteSlave(log2Up(ScreenInfo.Chars), Parameters.DataBits))
+  slave.io.channels <> io.channels
+  val mem = Module(new BlockRAM(ScreenInfo.Chars / Parameters.WordSize))
+  slave.io.bundle.read_valid := true.B
+  mem.io.write_enable := slave.io.bundle.write
+  mem.io.write_data := slave.io.bundle.write_data
+  mem.io.write_address := slave.io.bundle.address
+  mem.io.write_strobe := slave.io.bundle.write_strobe
+
+  mem.io.read_address := slave.io.bundle.address
+  slave.io.bundle.read_data := mem.io.read_data
+
   val pixel_clk = Wire(Bool())
   val hsync = Wire(Bool())
   val vsync = Wire(Bool())
   val sync = Module(new HDMISync)
-
-  io.x := sync.io.x
-  io.y := sync.io.y
-  io.x_next := sync.io.x_next
-  io.y_next := sync.io.y_next
-  io.video_on := sync.io.video_on
-
   hsync := sync.io.hsync
   vsync := sync.io.vsync
   pixel_clk := sync.io.p_tick
 
-  // TMDS_PLLVR is a vivado IP core, check it in /verilog/pynq/TMDS_PLLVR.v
+  val font_rom = Module(new FontROM)
+  val row = (sync.io.y >> log2Up(GlyphInfo.glyphHeight)).asUInt
+  val col = (sync.io.x >> log2Up(GlyphInfo.glyphWidth)).asUInt
+  val char_index = (row * ScreenInfo.CharCols.U) + col
+  val offset = char_index(1, 0)
+  val ch = Wire(UInt(8.W))
+
+  mem.io.debug_read_address := char_index
+  ch := MuxLookup(
+    offset,
+    0.U,
+    IndexedSeq(
+      0.U -> mem.io.debug_read_data(7, 0).asUInt,
+      1.U -> mem.io.debug_read_data(15, 8).asUInt,
+      2.U -> mem.io.debug_read_data(23, 16).asUInt,
+      3.U -> mem.io.debug_read_data(31, 24).asUInt
+    )
+  )
+  font_rom.io.glyph_index := Mux(ch >= 32.U, ch - 31.U, 0.U)
+  font_rom.io.glyph_y := sync.io.y(log2Up(GlyphInfo.glyphHeight) - 1, 0)
+  val rgb = Wire(UInt(24.W)) //RGB 8:8:8
+  // White if pixel_on and glyph pixel on
+  val glyph_x = sync.io.x(log2Up(GlyphInfo.glyphWidth) - 1, 0)
+  rgb := Mux(sync.io.video_on && font_rom.io.glyph_pixel_byte(glyph_x), 0xFFFFFFF.U, 0.U)
+  //TMDS_PLLVR is a vivado IP core, check it in /verilog/pynq/TMDS_PLLVR.v
   val serial_clk = Wire(Clock())
   val pll_lock = Wire(Bool())
   val tmdspll = Module(new TMDS_PLLVR)
   val rst = Wire(Reset())
-  tmdspll.io.clkin := pixel_clk.asClock
+  tmdspll.io.clkin := pixel_clk.asClock()
   serial_clk := tmdspll.io.clkout
   pll_lock := tmdspll.io.lock
   tmdspll.io.reset := reset
@@ -241,7 +255,7 @@ class HDMIDisplay extends Module {
 
   val tmds = Wire(UInt(3.W))
   val tmds_clk = Wire(Bool())
-  withClockAndReset(pixel_clk.asClock, rst) {
+  withClockAndReset(pixel_clk.asClock(), rst) {
     val tmds_channel1 = Wire(UInt(10.W))
     val tmds_channel2 = Wire(UInt(10.W))
     val tmds_channel0 = Wire(UInt(10.W))
