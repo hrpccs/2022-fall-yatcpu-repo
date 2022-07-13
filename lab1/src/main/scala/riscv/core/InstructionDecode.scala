@@ -141,8 +141,6 @@ class InstructionDecode extends Module {
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val ex_reg1_data = Output(UInt(Parameters.DataWidth))
-    val ex_reg2_data = Output(UInt(Parameters.DataWidth))
     val ex_immediate = Output(UInt(Parameters.DataWidth))
     val ex_aluop1_source = Output(UInt(1.W))
     val ex_aluop2_source = Output(UInt(1.W))
@@ -164,8 +162,6 @@ class InstructionDecode extends Module {
 
   io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
   io.regs_reg2_read_address := rs2
-  io.ex_reg1_data := io.reg1_data
-  io.ex_reg2_data := io.reg2_data
   val immediate = MuxLookup(
     opcode,
     Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),

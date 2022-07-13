@@ -16,7 +16,6 @@ package riscv.core
 
 import chisel3._
 import chisel3.experimental.ChiselEnum
-import chisel3.util._
 import riscv.Parameters
 
 object MemoryAccessStates extends ChiselEnum {

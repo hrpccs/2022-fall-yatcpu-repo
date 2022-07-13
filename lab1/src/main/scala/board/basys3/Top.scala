@@ -16,11 +16,11 @@ package board.basys3
 
 import chisel3._
 import chisel3.experimental.ChiselEnum
-import chisel3.util._
-import riscv._
-import peripheral.{CharacterDisplay, InstructionROM, Memory, Uart, VGADisplay}
-import bus.{BusArbiter, BusSwitch}
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.util._
+import peripheral.{Memory, CharacterDisplay, InstructionROM, VGADisplay}
+import riscv._
+import riscv.core.CPU
 
 object BootStates extends ChiselEnum {
   val Init, Loading, Finished = Value
@@ -39,68 +39,31 @@ class Top extends Module {
     val rgb = Output(UInt(12.W))
     val led = Output(UInt(16.W))
 
-    val tx = Output(Bool())
-    val rx = Input(Bool())
   })
-  val boot_state = RegInit(BootStates.Init)
 
-  val uart = Module(new Uart(100000000, 115200))
-  io.tx := uart.io.txd
-  uart.io.rxd := io.rx
-
-  val cpu = Module(new CPU)
+  val cpu = Module(new CPU(binaryFilename))
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  val timer = Module(new Timer)
-  val dummy = Module(new DummySlave)
-  val bus_arbiter = Module(new BusArbiter)
-  val bus_switch = Module(new BusSwitch)
-
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
 
   val vga_display = Module(new VGADisplay)
-  bus_arbiter.io.bus_request(0) := true.B
-
-  bus_switch.io.master <> cpu.io.axi4_channels
-  bus_switch.io.address := cpu.io.bus_address
-  for (i <- 0 until Parameters.SlaveDeviceCount) {
-    bus_switch.io.slaves(i) <> dummy.io.channels
-  }
-  rom_loader.io.load_address := Parameters.EntryAddress
-  rom_loader.io.load_start := false.B
-  rom_loader.io.rom_data := instruction_rom.io.data
-  instruction_rom.io.address := rom_loader.io.rom_address
-  cpu.io.stall_flag_bus := true.B
-  cpu.io.instruction_valid := false.B
-  bus_switch.io.slaves(0) <> mem.io.channels
-  rom_loader.io.channels <> dummy.io.channels
-  switch(boot_state) {
-    is(BootStates.Init) {
-      rom_loader.io.load_start := true.B
-      boot_state := BootStates.Loading
-      rom_loader.io.channels <> mem.io.channels
-    }
-    is(BootStates.Loading) {
-      rom_loader.io.load_start := false.B
-      rom_loader.io.channels <> mem.io.channels
-      when(rom_loader.io.load_finished) {
-        boot_state := BootStates.Finished
-      }
-    }
-    is(BootStates.Finished) {
-      cpu.io.stall_flag_bus := false.B
-      cpu.io.instruction_valid := true.B
-    }
-  }
   val display = Module(new CharacterDisplay)
-  bus_switch.io.slaves(1) <> display.io.channels
-  bus_switch.io.slaves(2) <> uart.io.channels
-  bus_switch.io.slaves(4) <> timer.io.channels
 
-  cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
+  display.io.bundle.address := 0.U
+  display.io.bundle.write_enable := false.B
+  display.io.bundle.write_data := 0.U
+  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.bundle.address := 0.U
+  mem.io.bundle.write_enable := false.B
+  mem.io.bundle.write_data := 0.U
+  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
 
-  cpu.io.debug_read_address := 0.U
   mem.io.debug_read_address := 0.U
+  cpu.io.reg_debug_read_address := 0.U
+
+  when(cpu.io.ramBundle.address(29)) {
+    display.io.bundle <> cpu.io.ramBundle
+  }.otherwise {
+    mem.io.bundle <> cpu.io.ramBundle
+  }
 
   io.hsync := vga_display.io.hsync
   io.vsync := vga_display.io.vsync

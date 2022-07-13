@@ -15,15 +15,14 @@
 package riscv.core
 
 import chisel3._
-import chisel3.util.MuxCase
-import riscv.Parameters
 import peripheral.InstructionROM
+import riscv.Parameters
 
 object ProgramCounter {
   val EntryAddress = Parameters.EntryAddress
 }
 
-class InstructionFetch extends Module {
+class InstructionFetch(instructionFilename: String) extends Module {
   val io = IO(new Bundle {
     val jump_flag_id = Input(Bool())
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
@@ -32,8 +31,7 @@ class InstructionFetch extends Module {
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
-  val binaryFilename = "litenes.asmbin"
-  val instruction_mem = new InstructionROM(binaryFilename)
+  val instruction_mem = Module(new InstructionROM(instructionFilename))
   pc := Mux(
     io.jump_flag_id,
     io.jump_address_id,

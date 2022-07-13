@@ -16,8 +16,8 @@ package riscv.core
 
 import chisel3._
 import chisel3.util._
+import peripheral.RamAccessBundle
 import riscv.Parameters
-import peripheral.BlockRAM
 
 class MemoryAccess extends Module {
   val io = IO(new Bundle() {
@@ -29,13 +29,18 @@ class MemoryAccess extends Module {
 
     val wb_memory_read_data = Output(UInt(Parameters.DataWidth))
 
+    val bundle = new RamAccessBundle
   })
   val mem_address_index = io.alu_result(log2Up(Parameters.WordSize) - 1, 0).asUInt
 
-  val data_mem = new BlockRAM(Parameters.MemorySizeInWords)
+  io.bundle.write_enable := false.B
+  io.bundle.write_data := 0.U
+  io.bundle.address := io.alu_result
+  io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  io.wb_memory_read_data := 0.U
 
   when(io.memory_read_enable) {
-    val data = data_mem.io.read_data
+    val data = io.bundle.read_data
     io.wb_memory_read_data := MuxLookup(
       io.funct3,
       0.U,
@@ -72,28 +77,28 @@ class MemoryAccess extends Module {
       )
     )
   }.elsewhen(io.memory_write_enable) {
-    data_mem.io.write_data := io.reg2_data
-    data_mem.io.write_enable := true.B
-    data_mem.io.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+    io.bundle.write_data := io.reg2_data
+    io.bundle.write_enable := true.B
+    io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
     when(io.funct3 === InstructionsTypeS.sb) {
-      data_mem.io.write_strobe(mem_address_index) := true.B
-      data_mem.io.write_data := io.reg2_data(Parameters.ByteBits, 0) << (mem_address_index << log2Up(Parameters.ByteBits).U)
+      io.bundle.write_strobe(mem_address_index) := true.B
+      io.bundle.write_data := io.reg2_data(Parameters.ByteBits, 0) << (mem_address_index << log2Up(Parameters.ByteBits).U)
     }.elsewhen(io.funct3 === InstructionsTypeS.sh) {
       when(mem_address_index === 0.U) {
         for (i <- 0 until Parameters.WordSize / 2) {
-          data_mem.io.write_strobe(i) := true.B
+          io.bundle.write_strobe(i) := true.B
         }
-        data_mem.io.write_data := io.reg2_data(Parameters.WordSize / 2 * Parameters.ByteBits, 0)
+        io.bundle.write_data := io.reg2_data(Parameters.WordSize / 2 * Parameters.ByteBits, 0)
       }.otherwise {
         for (i <- Parameters.WordSize / 2 until Parameters.WordSize) {
-          data_mem.io.write_strobe(i) := true.B
+          io.bundle.write_strobe(i) := true.B
         }
-        data_mem.io.write_data := io.reg2_data(Parameters.WordSize / 2 * Parameters.ByteBits, 0) << (Parameters
+        io.bundle.write_data := io.reg2_data(Parameters.WordSize / 2 * Parameters.ByteBits, 0) << (Parameters
           .WordSize / 2 * Parameters.ByteBits)
       }
     }.elsewhen(io.funct3 === InstructionsTypeS.sw) {
       for (i <- 0 until Parameters.WordSize) {
-        data_mem.io.write_strobe(i) := true.B
+        io.bundle.write_strobe(i) := true.B
       }
     }
   }
