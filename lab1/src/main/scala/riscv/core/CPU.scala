@@ -18,24 +18,29 @@ import chisel3._
 import peripheral.RamAccessBundle
 import riscv.Parameters
 
-class CPU(instructionFilename: String) extends Module {
+class CPU extends Module {
   val io = IO(new Bundle {
-    val ramBundle = new RamAccessBundle
+    val DataMemBundle = new RamAccessBundle
+    val InstMemBundle = new RamAccessBundle
     val reg_debug_read_address = Input(UInt(Parameters.AddrWidth))
     val reg_debug_read_data = Output(UInt(Parameters.DataWidth))
+    val mem_read = Output(Bool())
   })
 
   val regs = Module(new RegisterFile)
-  val inst_fetch = Module(new InstructionFetch(instructionFilename))
+  val inst_fetch = Module(new InstructionFetch)
   val id = Module(new InstructionDecode)
   val ex = Module(new Execute)
   val mem = Module(new MemoryAccess)
   val wb = Module(new WriteBack)
 
+  io.mem_read := id.io.ex_memory_read_enable
+
   inst_fetch.io.jump_address_id := id.io.if_jump_address
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag
 
-  io.ramBundle <> mem.io.bundle
+  io.DataMemBundle <> mem.io.bundle
+  io.InstMemBundle <> inst_fetch.io.bundle
 
   regs.io.write_enable := id.io.ex_reg_write_enable
   regs.io.write_address := id.io.ex_reg_write_address
@@ -69,5 +74,4 @@ class CPU(instructionFilename: String) extends Module {
   wb.io.alu_result := ex.io.mem_alu_result
   wb.io.memory_read_data := mem.io.wb_memory_read_data
   wb.io.regs_write_source := id.io.ex_reg_write_source
-
 }

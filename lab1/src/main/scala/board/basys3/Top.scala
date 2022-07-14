@@ -18,9 +18,9 @@ import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util._
-import peripheral.{Memory, CharacterDisplay, InstructionROM, VGADisplay}
+import peripheral.{CharacterDisplay, InstructionROM, Memory, VGADisplay}
 import riscv._
-import riscv.core.CPU
+import riscv.core.{CPU, ProgramCounter}
 
 object BootStates extends ChiselEnum {
   val Init, Loading, Finished = Value
@@ -41,11 +41,12 @@ class Top extends Module {
 
   })
 
-  val cpu = Module(new CPU(binaryFilename))
+  val cpu = Module(new CPU)
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
 
   val vga_display = Module(new VGADisplay)
   val display = Module(new CharacterDisplay)
+  val inst_mem = Module(new InstructionROM(binaryFilename))
 
   display.io.bundle.address := 0.U
   display.io.bundle.write_enable := false.B
@@ -55,15 +56,18 @@ class Top extends Module {
   mem.io.bundle.write_enable := false.B
   mem.io.bundle.write_data := 0.U
   mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-
   mem.io.debug_read_address := 0.U
+
   cpu.io.reg_debug_read_address := 0.U
 
-  when(cpu.io.ramBundle.address(29)) {
-    display.io.bundle <> cpu.io.ramBundle
+  when(cpu.io.DataMemBundle.address(29)) {
+    display.io.bundle <> cpu.io.DataMemBundle
   }.otherwise {
-    mem.io.bundle <> cpu.io.ramBundle
+    mem.io.bundle <> cpu.io.DataMemBundle
   }
+
+  inst_mem.io.address := (cpu.io.InstMemBundle.address - ProgramCounter.EntryAddress) >> 2
+  cpu.io.InstMemBundle.read_data := inst_mem.io.data
 
   io.hsync := vga_display.io.hsync
   io.vsync := vga_display.io.vsync

@@ -18,10 +18,10 @@ import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import peripheral._
 import riscv.Parameters
-import riscv.core.CPU
+import riscv.core.{CPU, ProgramCounter}
 
 class Top extends Module {
-  val binaryFilename = "tetris.asmbin"
+  val binaryFilename = "lb-align-01.elf.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
@@ -32,12 +32,11 @@ class Top extends Module {
     val led = Output(UInt(4.W))
   })
 
-  val cpu = Module(new CPU(binaryFilename))
+  val cpu = Module(new CPU)
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
-
-
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
+  val inst_mem = Module(new InstructionROM(binaryFilename))
 
   display.io.bundle.address := 0.U
   display.io.bundle.write_enable := false.B
@@ -51,11 +50,14 @@ class Top extends Module {
 
   cpu.io.reg_debug_read_address := 0.U
 
-  when(cpu.io.ramBundle.address(29)) {
-    display.io.bundle <> cpu.io.ramBundle
+  when(cpu.io.DataMemBundle.address(29)) {
+    display.io.bundle <> cpu.io.DataMemBundle
   }.otherwise {
-    mem.io.bundle <> cpu.io.ramBundle
+    mem.io.bundle <> cpu.io.DataMemBundle
   }
+
+  inst_mem.io.address := (cpu.io.InstMemBundle.address - ProgramCounter.EntryAddress) >> 2
+  cpu.io.InstMemBundle.read_data := inst_mem.io.data
 
   io.led := 15.U(4.W)
 

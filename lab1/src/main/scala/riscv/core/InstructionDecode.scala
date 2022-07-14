@@ -200,7 +200,7 @@ class InstructionDecode extends Module {
   )
   io.ex_reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
-    (opcode === Instructions.jal) || (opcode === Instructions.jalr) || (opcode === Instructions.csr)
+    (opcode === Instructions.jal) || (opcode === Instructions.jalr)
   io.ex_reg_write_address := io.instruction(11, 7)
   io.if_jump_flag := opcode === Instructions.jal ||
     (opcode === Instructions.jalr) ||
