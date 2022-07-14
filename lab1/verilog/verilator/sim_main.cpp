@@ -19,7 +19,7 @@ class Memory {
   uint32_t read(size_t address) {
     address = address / 4;
     if (address >= memory.size()) {
-      printf("invalid read address 0x%08x\n", address * 4);
+//      printf("invalid read address 0x%08x\n", address * 4);
       return 0;
     }
 
@@ -29,7 +29,7 @@ class Memory {
   uint32_t readInst(size_t address) {
 	  address = address / 4;
 	  if (address >= memory.size()) {
-		printf("invalid read Inst address 0x%08x\n", address * 4);
+//		printf("invalid read Inst address 0x%08x\n", address * 4);
 		return 0;
 	  }
 
@@ -44,7 +44,7 @@ class Memory {
     if (write_strobe[2]) write_mask |= 0x00FF0000;
     if (write_strobe[3]) write_mask |= 0xFF000000;
     if (address >= memory.size()) {
-      printf("invalid write address 0x%08x\n", address * 4);
+//      printf("invalid write address 0x%08x\n", address * 4);
       return;
     }
     memory[address] = (memory[address] & ~write_mask) | (value & write_mask);
@@ -196,9 +196,9 @@ class Simulator {
       top->clock = !top->clock;
       top->eval();
 
-	  if(top->io_mem_read){
-	  	data_memory_read_word = memory->read(top->io_DataMemBundle_address);
-	  }
+
+	  data_memory_read_word = memory->read(top->io_DataMemBundle_address);
+
 
 	  inst_memory_read_word = memory->readInst(top->io_InstMemBundle_address);
 

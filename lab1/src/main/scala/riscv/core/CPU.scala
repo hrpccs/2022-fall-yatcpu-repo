@@ -24,7 +24,6 @@ class CPU extends Module {
     val InstMemBundle = new RamAccessBundle
     val reg_debug_read_address = Input(UInt(Parameters.AddrWidth))
     val reg_debug_read_data = Output(UInt(Parameters.DataWidth))
-    val mem_read = Output(Bool())
   })
 
   val regs = Module(new RegisterFile)
@@ -33,8 +32,6 @@ class CPU extends Module {
   val ex = Module(new Execute)
   val mem = Module(new MemoryAccess)
   val wb = Module(new WriteBack)
-
-  io.mem_read := id.io.ex_memory_read_enable
 
   inst_fetch.io.jump_address_id := id.io.if_jump_address
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag

@@ -27,22 +27,13 @@ class Top extends Module {
 
     val DataMemBundle = new RamAccessBundle
     val InstMemBundle = new RamAccessBundle
-
-    val mem_read = Output(Bool())
   })
 
   val cpu = Module(new CPU)
 
-  io.mem_read := cpu.io.mem_read
   cpu.io.reg_debug_read_address := io.cpu_debug_read_address
   io.cpu_debug_read_data := cpu.io.reg_debug_read_data
 
-  val index = cpu.io.DataMemBundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - 3)
-
-  when(index =/= 0.U){
-    io.DataMemBundle.address := 0.U
-    io.InstMemBundle.address := 0.U
-  }
   io.DataMemBundle <> cpu.io.DataMemBundle
   io.InstMemBundle <> cpu.io.InstMemBundle
 }
