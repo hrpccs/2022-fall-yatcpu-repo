@@ -20,7 +20,7 @@ import chisel3.util.experimental.loadMemoryFromFileInline
 import firrtl.annotations.MemorySynthInit
 import riscv.Parameters
 
-import java.io.{FileInputStream, FileWriter}
+import java.io.FileWriter
 import java.nio.file.{Files, Paths}
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -31,13 +31,13 @@ class InstructionROM(instructionFilename: String) extends Module {
   })
 
   val (instructionsInitFile, capacity) = readAsmBinary(instructionFilename)
-  val mem = SyncReadMem(capacity, UInt(Parameters.InstructionWidth))
+  val mem = Mem(capacity, UInt(Parameters.InstructionWidth))
   annotate(new ChiselAnnotation {
     override def toFirrtl =
       MemorySynthInit
   })
   loadMemoryFromFileInline(mem, instructionsInitFile.toString.replaceAll("\\\\", "/"))
-  io.data := mem.read(io.address, true.B)
+  io.data := mem.read(io.address)
 
   def readAsmBinary(filename: String) = {
     val inputStream = if (Files.exists(Paths.get(filename))) {

@@ -18,14 +18,9 @@ import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.util._
 import riscv._
-import peripheral.{DummySlave, InstructionROM, Memory, ROMLoader, Timer, Uart, VGADisplay}
-import bus.{BusArbiter, BusSwitch}
+import peripheral._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import riscv.core.CPU
-
-object BootStates extends ChiselEnum {
-  val Init, Loading, Finished = Value
-}
 
 class Top extends Module {
   val binaryFilename = "tetris.asmbin"
@@ -35,77 +30,22 @@ class Top extends Module {
     val segs = Output(UInt(8.W))
     val digit_mask = Output(UInt(4.W))
 
-    val hsync = Output(Bool())
-    val vsync = Output(Bool())
-    val rgb = Output(UInt(12.W))
     val led = Output(UInt(16.W))
-
-    val tx = Output(Bool())
-    val rx = Input(Bool())
   })
-  val boot_state = RegInit(BootStates.Init)
 
-  val uart = Module(new Uart(100000000, 115200))
-  io.tx := uart.io.txd
-  uart.io.rxd := io.rx
-
-  val cpu = Module(new CPU)
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  val timer = Module(new Timer)
-  val dummy = Module(new DummySlave)
-  val bus_arbiter = Module(new BusArbiter)
-  val bus_switch = Module(new BusSwitch)
+  val cpu = Module(new CPU(ImplementationType.ThreeStage))
 
   val instruction_rom = Module(new InstructionROM(binaryFilename))
-  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
+  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := instruction_rom.io.data
 
-  val vga_display = Module(new VGADisplay)
-  bus_arbiter.io.bus_request(0) := true.B
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
+  mem.io.bundle <> cpu.io.memory_bundle
 
-  bus_switch.io.master <> cpu.io.axi4_channels
-  bus_switch.io.address := cpu.io.bus_address
-  for (i <- 0 until Parameters.SlaveDeviceCount) {
-    bus_switch.io.slaves(i) <> dummy.io.channels
-  }
-  rom_loader.io.load_address := Parameters.EntryAddress
-  rom_loader.io.load_start := false.B
-  rom_loader.io.rom_data := instruction_rom.io.data
-  instruction_rom.io.address := rom_loader.io.rom_address
-  cpu.io.stall_flag_bus := true.B
-  cpu.io.instruction_valid := false.B
-  bus_switch.io.slaves(0) <> mem.io.channels
-  rom_loader.io.channels <> dummy.io.channels
-  switch(boot_state) {
-    is(BootStates.Init) {
-      rom_loader.io.load_start := true.B
-      boot_state := BootStates.Loading
-      rom_loader.io.channels <> mem.io.channels
-    }
-    is(BootStates.Loading) {
-      rom_loader.io.load_start := false.B
-      rom_loader.io.channels <> mem.io.channels
-      when(rom_loader.io.load_finished) {
-        boot_state := BootStates.Finished
-      }
-    }
-    is(BootStates.Finished) {
-      cpu.io.stall_flag_bus := false.B
-      cpu.io.instruction_valid := true.B
-    }
-  }
-  bus_switch.io.slaves(1) <> vga_display.io.channels
-  bus_switch.io.slaves(2) <> uart.io.channels
-  bus_switch.io.slaves(4) <> timer.io.channels
-
-  cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
+  cpu.io.interrupt_flag := 0.U
 
   cpu.io.debug_read_address := 0.U
   mem.io.debug_read_address := 0.U
-
-  io.hsync := vga_display.io.hsync
-  io.vsync := vga_display.io.vsync
-
-  io.rgb := vga_display.io.rgb
 
   mem.io.debug_read_address := io.switch(15, 1).asUInt << 2
   io.led := Mux(

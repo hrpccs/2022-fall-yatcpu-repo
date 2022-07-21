@@ -32,7 +32,7 @@ class ID2EX extends Module {
     val csr_write_enable = Input(Bool())
     val csr_write_address = Input(UInt(Parameters.CSRRegisterAddrWidth))
     val csr_read_data = Input(UInt(Parameters.DataWidth))
-    val stall_flag = Input(UInt(Parameters.StallStateWidth))
+//    val stall_flag = Input(UInt(Parameters.StallStateWidth))
     val jump_flag = Input(Bool())
 
     val output_instruction = Output(UInt(Parameters.DataWidth))
@@ -49,7 +49,8 @@ class ID2EX extends Module {
     val output_csr_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
     val output_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
-  val write_enable = io.stall_flag < StallStates.ID
+//  val write_enable = io.stall_flag < StallStates.ID
+  val write_enable = true.B
   val flush_enable = io.jump_flag
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))

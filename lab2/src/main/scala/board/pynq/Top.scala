@@ -14,92 +14,52 @@
 
 package board.pynq
 
-import bus.{BusArbiter, BusSwitch}
 import chisel3._
-import chisel3.experimental.ChiselEnum
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
-import chisel3.util.{Cat, is, switch}
 import peripheral._
-import riscv.Parameters
 import riscv.core.CPU
-
-object BootStates extends ChiselEnum {
-  val Init, Loading, Finished = Value
-}
+import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
-  val binaryFilename = "tetris.asmbin"
+  val binaryFilename = "sb.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
     val hdmi_data_n = Output(UInt(3.W))
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
-
-    val tx = Output(Bool())
-    val rx = Input(Bool())
-
-    val led = Output(UInt(4.W))
   })
-  io.led := 15.U(4.W)
-  val boot_state = RegInit(BootStates.Init)
-
-  val uart = Module(new Uart(125000000, 115200))
-  io.tx := uart.io.txd
-  uart.io.rxd := io.rx
-
-  val cpu = Module(new CPU)
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  val timer = Module(new Timer)
-  val dummy = Module(new DummySlave)
-  val bus_arbiter = Module(new BusArbiter)
-  val bus_switch = Module(new BusSwitch)
+  val cpu = Module(new CPU(ImplementationType.ThreeStage))
+  cpu.io.interrupt_flag := 0.U
+  cpu.io.debug_read_address := 0.U
 
   val instruction_rom = Module(new InstructionROM(binaryFilename))
-  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
+  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := instruction_rom.io.data
 
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
-  bus_arbiter.io.bus_request(0) := true.B
-
-  bus_switch.io.master <> cpu.io.axi4_channels
-  bus_switch.io.address := cpu.io.bus_address
-  for (i <- 0 until Parameters.SlaveDeviceCount) {
-    bus_switch.io.slaves(i) <> dummy.io.channels
-  }
-  rom_loader.io.load_address := Parameters.EntryAddress
-  rom_loader.io.load_start := false.B
-  rom_loader.io.rom_data := instruction_rom.io.data
-  instruction_rom.io.address := rom_loader.io.rom_address
-  cpu.io.stall_flag_bus := true.B
-  cpu.io.instruction_valid := false.B
-  bus_switch.io.slaves(0) <> mem.io.channels
-  rom_loader.io.channels <> dummy.io.channels
-  switch(boot_state) {
-    is(BootStates.Init) {
-      rom_loader.io.load_start := true.B
-      boot_state := BootStates.Loading
-      rom_loader.io.channels <> mem.io.channels
-    }
-    is(BootStates.Loading) {
-      rom_loader.io.load_start := false.B
-      rom_loader.io.channels <> mem.io.channels
-      when(rom_loader.io.load_finished) {
-        boot_state := BootStates.Finished
-      }
-    }
-    is(BootStates.Finished) {
-      cpu.io.stall_flag_bus := false.B
-      cpu.io.instruction_valid := true.B
-    }
-  }
-  bus_switch.io.slaves(1) <> hdmi_display.io.channels
-  bus_switch.io.slaves(2) <> uart.io.channels
-  bus_switch.io.slaves(4) <> timer.io.channels
-
-  cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
-
-  cpu.io.debug_read_address := 0.U
+  val display = Module(new CharacterDisplay)
+  display.io.bundle.address := 0.U
+  display.io.bundle.write_enable := false.B
+  display.io.bundle.write_data := 0.U
+  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.bundle.address := 0.U
+  mem.io.bundle.write_enable := false.B
+  mem.io.bundle.write_data := 0.U
+  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
   mem.io.debug_read_address := 0.U
+
+  when(cpu.io.memory_bundle.address(29)) {
+    display.io.bundle <> cpu.io.memory_bundle
+  }.otherwise {
+    mem.io.bundle <> cpu.io.memory_bundle
+  }
+
+  display.io.x := hdmi_display.io.x_next
+  display.io.y := hdmi_display.io.y_next
+  display.io.video_on := hdmi_display.io.video_on
+  hdmi_display.io.rgb := display.io.rgb
 
   io.hdmi_hpdn := 1.U
   io.hdmi_data_n := hdmi_display.io.TMDSdata_n

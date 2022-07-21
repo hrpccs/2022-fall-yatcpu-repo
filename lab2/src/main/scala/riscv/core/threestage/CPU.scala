@@ -14,9 +14,7 @@
 
 package riscv.core.threestage
 
-import bus.{AXI4LiteChannels, AXI4LiteMaster}
 import chisel3._
-import riscv.Parameters
 import riscv.core.CPUBundle
 
 class CPU extends Module {
@@ -31,56 +29,13 @@ class CPU extends Module {
   val ex = Module(new Execute)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
-  val axi4_master = Module(new AXI4LiteMaster(Parameters.AddrBits, Parameters.DataBits))
-
-  axi4_master.io.channels <> io.axi4_channels
-
-  // The EX module takes precedence over IF (but let the previous fetch finish)
-  val ex_granted = RegInit(false.B)
-  when(ex_granted) {
-    inst_fetch.io.instruction_valid := false.B
-    io.bus_address := ex.io.bus.address
-    axi4_master.io.bundle.read := ex.io.bus.read
-    axi4_master.io.bundle.address := ex.io.bus.address
-    axi4_master.io.bundle.write := ex.io.bus.write
-    axi4_master.io.bundle.write_data := ex.io.bus.write_data
-    axi4_master.io.bundle.write_strobe := ex.io.bus.write_strobe
-    when(!ex.io.bus.request) {
-      ex_granted := false.B
-    }
-  }.otherwise {
-    // Default to fetch instructions from main memory
-    ex_granted := false.B
-    axi4_master.io.bundle.read := !axi4_master.io.bundle.busy && !axi4_master.io.bundle.read_valid && !ex.io.bus.request
-    axi4_master.io.bundle.address := inst_fetch.io.bus_address
-    io.bus_address := inst_fetch.io.bus_address
-    axi4_master.io.bundle.write := false.B
-    axi4_master.io.bundle.write_data := 0.U
-    axi4_master.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-  }
-
-  when(ex.io.bus.request) {
-    when(!axi4_master.io.bundle.busy && !axi4_master.io.bundle.read_valid) {
-      ex_granted := true.B
-    }
-  }
-
-  inst_fetch.io.instruction_valid := io.instruction_valid && axi4_master.io.bundle.read_valid && !ex_granted
-  inst_fetch.io.bus_data := axi4_master.io.bundle.read_data
-
-  ex.io.bus.read_data := axi4_master.io.bundle.read_data
-  ex.io.bus.read_valid := axi4_master.io.bundle.read_valid
-  ex.io.bus.write_valid := axi4_master.io.bundle.write_valid
-  ex.io.bus.busy := axi4_master.io.bundle.busy
-  ex.io.bus.granted := ex_granted
 
   ctrl.io.jump_flag := ex.io.ctrl_jump_flag
   ctrl.io.jump_address := ex.io.ctrl_jump_address
-  ctrl.io.stall_flag_if := inst_fetch.io.ctrl_stall_flag
-  ctrl.io.stall_flag_ex := ex.io.ctrl_stall_flag
-  ctrl.io.stall_flag_id := id.io.ctrl_stall_flag
-  ctrl.io.stall_flag_clint := clint.io.ctrl_stall_flag
-  ctrl.io.stall_flag_bus := io.stall_flag_bus
+//  ctrl.io.stall_flag_if := inst_fetch.io.ctrl_stall_flag
+//  ctrl.io.stall_flag_ex := ex.io.ctrl_stall_flag
+//  ctrl.io.stall_flag_id := id.io.ctrl_stall_flag
+//  ctrl.io.stall_flag_clint := clint.io.ctrl_stall_flag
 
   regs.io.write_enable := ex.io.regs_write_enable
   regs.io.write_address := ex.io.regs_write_address
@@ -91,13 +46,15 @@ class CPU extends Module {
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
+  io.instruction_address := inst_fetch.io.rom_instruction_address
   inst_fetch.io.jump_flag_ctrl := ctrl.io.pc_jump_flag
   inst_fetch.io.jump_address_ctrl := ctrl.io.pc_jump_address
-  inst_fetch.io.stall_flag_ctrl := ctrl.io.output_stall_flag
+//  inst_fetch.io.stall_flag_ctrl := ctrl.io.output_stall_flag
+  inst_fetch.io.rom_instruction := io.instruction
 
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.id_instruction_address
-  if2id.io.stall_flag := ctrl.io.output_stall_flag
+//  if2id.io.stall_flag := ctrl.io.output_stall_flag
   if2id.io.jump_flag := ctrl.io.pc_jump_flag
   if2id.io.interrupt_flag := io.interrupt_flag
 
@@ -120,7 +77,7 @@ class CPU extends Module {
   id2ex.io.reg2_data := id.io.ex_reg2_data
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable
   id2ex.io.regs_write_address := id.io.ex_reg_write_address
-  id2ex.io.stall_flag := ctrl.io.output_stall_flag
+//  id2ex.io.stall_flag := ctrl.io.output_stall_flag
   id2ex.io.jump_flag := ctrl.io.pc_jump_flag
 
   ex.io.instruction := id2ex.io.output_instruction
@@ -138,6 +95,7 @@ class CPU extends Module {
   ex.io.regs_write_address_id := id2ex.io.output_regs_write_address
   ex.io.interrupt_assert := clint.io.ex_interrupt_assert
   ex.io.interrupt_handler_address := clint.io.ex_interrupt_handler_address
+  ex.io.memory_bundle <> io.memory_bundle
 
   clint.io.instruction := id.io.ex_instruction
   clint.io.instruction_address_id := id.io.instruction_address

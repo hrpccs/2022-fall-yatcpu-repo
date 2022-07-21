@@ -27,21 +27,14 @@ class InstructionFetch extends Module {
     val stall_flag_ctrl = Input(Bool())
     val jump_flag_id = Input(Bool())
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
-    val instruction_valid = Input(Bool())
+    val rom_instruction = Input(UInt(Parameters.DataWidth))
 
-    val bus_request = Output(Bool())
-    val bus_address = Output(UInt(Parameters.AddrWidth))
-    val bus_data = Input(UInt(Parameters.InstructionWidth))
-    val bus_read = Output(Bool())
-
-    val ctrl_stall_flag = Output(Bool())
+    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
+    val ctrl_stall_flag = Output(Bool())
   })
-  val pending_jump = RegInit(false.B)
   val pc = RegInit(ProgramCounter.EntryAddress)
-  io.bus_read := true.B
-  io.bus_request := true.B
 
   pc := MuxCase(
     pc + 4.U,
@@ -50,19 +43,9 @@ class InstructionFetch extends Module {
       io.stall_flag_ctrl -> pc
     )
   )
-  when(!io.instruction_valid) {
-    when(io.jump_flag_id) {
-      pending_jump := true.B
-    }
-  }
-  when(io.instruction_valid) {
-    when(pending_jump) {
-      pending_jump := false.B
-    }
-  }
-  io.id_instruction := Mux(io.instruction_valid && !io.jump_flag_id && !pending_jump, io.bus_data,
-    InstructionsNop.nop)
-  io.ctrl_stall_flag := !io.instruction_valid || pending_jump
+
+  io.rom_instruction_address := pc
   io.id_instruction_address := pc
-  io.bus_address := pc
+  io.id_instruction := io.rom_instruction
+  io.ctrl_stall_flag := false.B
 }

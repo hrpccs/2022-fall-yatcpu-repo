@@ -10,18 +10,30 @@
 
 #include "VTop.h"  // From Verilating "top.v"
 
+
 class Memory {
   std::vector<uint32_t> memory;
 
  public:
   Memory(size_t size) : memory(size, 0) {}
+  
   uint32_t read(size_t address) {
     address = address / 4;
     if (address >= memory.size()) {
-      printf("invalid read address 0x%08x\n", address * 4);
+//      printf("invalid read address 0x%08x\n", address * 4);
       return 0;
     }
     return memory[address];
+  }
+
+  uint32_t readInst(size_t address) {
+	  address = address / 4;
+	  if (address >= memory.size()) {
+//		printf("invalid read Inst address 0x%08x\n", address * 4);
+		return 0;
+	  }
+
+	 return memory[address];
   }
 
   void write(size_t address, uint32_t value, bool write_strobe[4]) {
@@ -32,7 +44,7 @@ class Memory {
     if (write_strobe[2]) write_mask |= 0x00FF0000;
     if (write_strobe[3]) write_mask |= 0xFF000000;
     if (address >= memory.size()) {
-      printf("invalid write address 0x%08x\n", address * 4);
+//      printf("invalid write address 0x%08x\n", address * 4);
       return;
     }
     memory[address] = (memory[address] & ~write_mask) | (value & write_mask);
@@ -161,39 +173,34 @@ class Simulator {
   void run() {
     top->reset = 1;
     top->clock = 0;
-    top->io_mem_slave_read_valid = true;
     top->eval();
     vcd_tracer->dump(main_time);
-    uint32_t memory_read_word = 0;
+    uint32_t data_memory_read_word = 0;
+    uint32_t inst_memory_read_word = 0;
     bool memory_write_strobe[4] = {false};
-    bool uart_debounce = false;
     while (main_time < max_sim_time && !Verilated::gotFinish()) {
       ++main_time;
       if (main_time > 2) {
         top->reset = 0;
       }
-      top->io_mem_slave_read_data = memory_read_word;
+//      top->io_mem_slave_read_data = memory_read_word;
+      top->io_memory_bundle_read_data = data_memory_read_word;
+      top->io_instruction = inst_memory_read_word;
       top->clock = !top->clock;
       top->eval();
-      if (top->io_uart_slave_write) {
-         if (uart_debounce && top->clock) {
-           std::cout << (char)top->io_uart_slave_write_data << std::flush;
-         }
-         if (!uart_debounce && top->clock) {
-           uart_debounce = true;
-         }
-      } else {
-        uart_debounce = false;
-      }
-      if (top->io_mem_slave_read) {
-        memory_read_word = memory->read(top->io_mem_slave_address);
-      }
-      if (top->io_mem_slave_write) {
-        memory_write_strobe[0] = top->io_mem_slave_write_strobe_0;
-        memory_write_strobe[1] = top->io_mem_slave_write_strobe_1;
-        memory_write_strobe[2] = top->io_mem_slave_write_strobe_2;
-        memory_write_strobe[3] = top->io_mem_slave_write_strobe_3;
-        memory->write(top->io_mem_slave_address, top->io_mem_slave_write_data,
+
+
+	  data_memory_read_word = memory->read(top->io_memory_bundle_address);
+
+
+	  inst_memory_read_word = memory->readInst(top->io_instruction_address);
+
+      if (top->io_memory_bundle_write_enable) {
+        memory_write_strobe[0] = top->io_memory_bundle_write_strobe_0;
+        memory_write_strobe[1] = top->io_memory_bundle_write_strobe_1;
+        memory_write_strobe[2] = top->io_memory_bundle_write_strobe_2;
+        memory_write_strobe[3] = top->io_memory_bundle_write_strobe_3;
+        memory->write(top->io_memory_bundle_address, top->io_memory_bundle_write_data,
                      memory_write_strobe);
       }
       vcd_tracer->dump(main_time);

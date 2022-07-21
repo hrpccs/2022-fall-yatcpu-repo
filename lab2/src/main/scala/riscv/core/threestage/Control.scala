@@ -28,14 +28,13 @@ object StallStates {
 class Control extends Module {
   val io = IO(new Bundle {
     val jump_flag = Input(Bool())
-    val stall_flag_if = Input(Bool())
-    val stall_flag_id = Input(Bool())
-    val stall_flag_ex = Input(Bool())
-    val stall_flag_clint = Input(Bool())
-    val stall_flag_bus = Input(Bool())
+//    val stall_flag_if = Input(Bool())
+//    val stall_flag_id = Input(Bool())
+//    val stall_flag_ex = Input(Bool())
+//    val stall_flag_clint = Input(Bool())
     val jump_address = Input(UInt(Parameters.AddrWidth))
 
-    val output_stall_flag = Output(UInt(Parameters.StallStateWidth))
+//    val output_stall_flag = Output(UInt(Parameters.StallStateWidth))
 
     val pc_jump_flag = Output(Bool())
     val pc_jump_address = Output(UInt(Parameters.AddrWidth))
@@ -44,12 +43,12 @@ class Control extends Module {
   io.pc_jump_flag := io.jump_flag
   io.pc_jump_address := io.jump_address
 
-  io.output_stall_flag := MuxCase(
-    StallStates.None,
-    IndexedSeq(
-      (io.jump_flag || io.stall_flag_ex || io.stall_flag_clint) -> StallStates.ID,
-      io.stall_flag_id -> StallStates.IF,
-      (io.stall_flag_bus || io.stall_flag_if) -> StallStates.PC,
-    )
-  )
+//  io.output_stall_flag := MuxCase(
+//    StallStates.None,
+//    IndexedSeq(
+//      (io.jump_flag || io.stall_flag_ex || io.stall_flag_clint) -> StallStates.ID,
+//      io.stall_flag_id -> StallStates.IF,
+//      io.stall_flag_if -> StallStates.PC,
+//    )
+//  )
 }
