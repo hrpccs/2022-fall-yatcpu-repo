@@ -177,9 +177,17 @@ class Simulator {
     vcd_tracer->dump(main_time);
     uint32_t data_memory_read_word = 0;
     uint32_t inst_memory_read_word = 0;
+    uint32_t clocktime = 1;
+    uint32_t counter = 0;
     bool memory_write_strobe[4] = {false};
     while (main_time < max_sim_time && !Verilated::gotFinish()) {
       ++main_time;
+      ++counter;
+	  if(counter > clocktime){
+      	top->clock = !top->clock;
+      	counter = 0;
+      }
+
       if (main_time > 2) {
         top->reset = 0;
       }

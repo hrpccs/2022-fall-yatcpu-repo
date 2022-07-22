@@ -35,7 +35,6 @@ class InstructionFetch extends Module {
 //    val ctrl_stall_flag = Output(Bool())
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
-  val pending_jump = RegInit(false.B)
 
   pc := MuxCase(
     pc + 4.U,
@@ -45,14 +44,8 @@ class InstructionFetch extends Module {
     )
   )
 
-  when(io.jump_flag_ctrl) {
-    pending_jump := true.B
-  }.otherwise {
-    pending_jump := false.B
-  }
-
   io.rom_instruction_address := pc
   io.id_instruction_address := pc
-  io.id_instruction := Mux(!io.jump_flag_ctrl && !pending_jump, io.rom_instruction, InstructionsNop.nop)
+  io.id_instruction := io.rom_instruction
 //  io.ctrl_stall_flag := pending_jump
 }

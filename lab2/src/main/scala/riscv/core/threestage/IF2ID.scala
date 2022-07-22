@@ -31,7 +31,7 @@ class IF2ID extends Module {
   })
 
 //  val write_enable = io.stall_flag < StallStates.IF
-  val write_enable = true.B
+  val write_enable = !io.jump_flag
   val flush_enable = io.jump_flag
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))
