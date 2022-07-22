@@ -60,27 +60,16 @@ class TestTopModule(exeFilename: String) extends Module {
     val interrupt = Input(UInt(Parameters.InterruptFlagWidth))
     val boot_state = Output(UInt())
   })
-  val boot_state = RegInit(BootStates.Init)
-  io.boot_state := boot_state.asUInt
+
+  val deviceSelect = io.mem_debug_read_address(31,29)
+  val addressInDevice = Cat(0.U(3.W),io.mem_debug_read_address(28,0))
+
   val instruction_rom = Module(new TestInstructionROM(exeFilename))
-  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
   val mem = Module(new Memory(8192))
   val cpu = Module(new CPU)
   val timer = Module(new Timer)
-  val bus_switch = Module(new BusSwitch)
-  val dummy = Module(new DummySlave)
-  bus_switch.io.master <> cpu.io.axi4_channels
-  bus_switch.io.address := cpu.io.bus_address
-  for (i <- 0 until Parameters.SlaveDeviceCount) {
-    bus_switch.io.slaves(i) <> dummy.io.channels
-  }
-  rom_loader.io.load_address := ProgramCounter.EntryAddress
-  rom_loader.io.rom_data := instruction_rom.io.data
-  rom_loader.io.load_start := false.B
+
   instruction_rom.io.address := rom_loader.io.rom_address
-  cpu.io.stall_flag_bus := true.B
-  cpu.io.instruction_valid := false.B
-  bus_switch.io.slaves(0) <> mem.io.channels
   rom_loader.io.channels <> dummy.io.channels
   switch(boot_state) {
     is(BootStates.Init) {

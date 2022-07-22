@@ -22,26 +22,30 @@ import riscv.core.CPU
 import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
-  val binaryFilename = "sb.asmbin"
+  val binaryFilename = "debug.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
     val hdmi_data_n = Output(UInt(3.W))
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
+
+    val led = Output(UInt(4.W))
   })
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
-  cpu.io.interrupt_flag := 0.U
-  cpu.io.debug_read_address := 0.U
 
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
-  cpu.io.instruction := instruction_rom.io.data
-
+  io.led := 15.U(4.W)
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
   val timer = Module(new Timer)
+  val cpu = Module(new CPU(ImplementationType.ThreeStage))
+  val instruction_rom = Module(new InstructionROM(binaryFilename))
+  cpu.io.interrupt_flag := timer.io.signal_interrupt
+  cpu.io.debug_read_address := 0.U
+
+  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := instruction_rom.io.data
+
   display.io.bundle.address := 0.U
   display.io.bundle.write_enable := false.B
   display.io.bundle.write_data := 0.U

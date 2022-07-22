@@ -5,7 +5,7 @@ project(yatcpu-programs C CXX ASM)
 # Setting variables
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32")
 set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -O0 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32")
-set(C_PROGRAMS tetris hello fibonacci quicksort)
+set(C_PROGRAMS tetris hello fibonacci quicksort debug)
 set(ASM_PROGRAMS mmio sb)
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/link.lds)
 set(LINKER_FLAGS -T ${LINKER_SCRIPT}) 
@@ -32,31 +32,8 @@ foreach(program IN LISTS ASM_PROGRAMS)
 	set_target_properties(${program} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
 endforeach()
 
-set(PROGRAMS litenes)
-# NES Emulator
-include_directories(${CMAKE_SOURCE_DIR}/LiteNES/include)
-add_definitions(-DYATCPU)
-add_library(fce
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/common.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/cpu-addressing.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/cpu.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/fce.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/memory.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/mmc.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/ppu.c
-	${CMAKE_SOURCE_DIR}/LiteNES/src/fce/psg.c
-)
-target_compile_options(fce PRIVATE "-O3")
-add_executable(litenes 
-	${CMAKE_SOURCE_DIR}/LiteNES/src/main.c
-  ${CMAKE_SOURCE_DIR}/LiteNES/src/hal.c
-  ${CMAKE_SOURCE_DIR}/LiteNES/src/rom.c
-)
-set_target_properties(litenes PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
-target_link_libraries(litenes prelude fce ${LINKER_FLAGS})
-
-# Copy the .text and .data section to .asmbin files
-foreach(program IN LISTS C_PROGRAMS ASM_PROGRAMS PROGRAMS)
+# Copy the .text section to .asmbin files
+foreach(program IN LISTS C_PROGRAMS ASM_PROGRAMS)
 	add_custom_command(
 		TARGET ${program}
 		POST_BUILD

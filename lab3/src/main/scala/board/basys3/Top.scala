@@ -30,24 +30,61 @@ class Top extends Module {
     val segs = Output(UInt(8.W))
     val digit_mask = Output(UInt(4.W))
 
+    val hsync = Output(Bool())
+    val vsync = Output(Bool())
+    val rgb = Output(UInt(12.W))
+
     val led = Output(UInt(16.W))
   })
 
   val cpu = Module(new CPU(ImplementationType.ThreeStage))
-
   val instruction_rom = Module(new InstructionROM(binaryFilename))
   instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
   cpu.io.instruction := instruction_rom.io.data
 
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
+  val timer = Module(new Timer)
+  val vga_display = Module(new VGADisplay)
+  val display = Module(new CharacterDisplay)
+
+  display.io.bundle.address := 0.U
+  display.io.bundle.write_enable := false.B
+  display.io.bundle.write_data := 0.U
+  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.bundle.address := 0.U
+  mem.io.bundle.write_enable := false.B
+  mem.io.bundle.write_data := 0.U
+  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.debug_read_address := 0.U
+  timer.io.bundle.address := 0.U
+  timer.io.bundle.write_enable := false.B
+  timer.io.bundle.write_data := 0.U
+  timer.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+
   mem.io.bundle <> cpu.io.memory_bundle
 
-  cpu.io.interrupt_flag := 0.U
+  when(cpu.io.deviceSelect === 4.U) {
+    timer.io.bundle <> cpu.io.memory_bundle
+  }.elsewhen(cpu.io.deviceSelect === 1.U) {
+    display.io.bundle <> cpu.io.memory_bundle
+  }.otherwise {
+    mem.io.bundle <> cpu.io.memory_bundle
+  }
 
+
+  io.vsync := vga_display.io.vsync
+  io.hsync := vga_display.io.hsync
+  io.rgb := display.io.rgb
+  display.io.x := vga_display.io.x
+  display.io.y := vga_display.io.y
+  display.io.video_on := vga_display.io.video_on
+
+  cpu.io.interrupt_flag := timer.io.signal_interrupt
   cpu.io.debug_read_address := 0.U
   mem.io.debug_read_address := 0.U
-
   mem.io.debug_read_address := io.switch(15, 1).asUInt << 2
+
+
   io.led := Mux(
     io.switch(0),
     mem.io.debug_read_data(31, 16).asUInt,
