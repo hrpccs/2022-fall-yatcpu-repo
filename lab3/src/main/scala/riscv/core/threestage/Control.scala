@@ -15,7 +15,6 @@
 package riscv.core.threestage
 
 import chisel3._
-import chisel3.util._
 import riscv.Parameters
 
 object StallStates {
@@ -28,14 +27,15 @@ object StallStates {
 class Control extends Module {
   val io = IO(new Bundle {
     val jump_flag = Input(Bool())
-    val stall_flag_if = Input(Bool())
-    val stall_flag_id = Input(Bool())
-    val stall_flag_ex = Input(Bool())
-    val stall_flag_clint = Input(Bool())
-    val stall_flag_bus = Input(Bool())
+    //    val stall_flag_if = Input(Bool())
+    //    val stall_flag_id = Input(Bool())
+    //    val stall_flag_ex = Input(Bool()) // no need to stall
+    val stall_flag_clint = Input(Bool()) // store the cpu state at a time, no need to write csr separately
     val jump_address = Input(UInt(Parameters.AddrWidth))
 
-    val output_stall_flag = Output(UInt(Parameters.StallStateWidth))
+    val pc_stall_flag = Output(Bool())//stall pc register
+    val if_stall_flag = Output(Bool())//stall if2id register
+    val id_stall_flag = Output(Bool())//stall id2ex register
 
     val pc_jump_flag = Output(Bool())
     val pc_jump_address = Output(UInt(Parameters.AddrWidth))
@@ -44,12 +44,7 @@ class Control extends Module {
   io.pc_jump_flag := io.jump_flag
   io.pc_jump_address := io.jump_address
 
-  io.output_stall_flag := MuxCase(
-    StallStates.None,
-    IndexedSeq(
-      (io.jump_flag || io.stall_flag_ex || io.stall_flag_clint) -> StallStates.ID,
-      io.stall_flag_id -> StallStates.IF,
-      (io.stall_flag_bus || io.stall_flag_if) -> StallStates.PC,
-    )
-  )
+  io.pc_stall_flag := false.B
+  io.if_stall_flag := false.B
+  io.id_stall_flag := io.stall_flag_clint  // when outer interrupt occur, stall signal rises up and we need to wait for the execution to be done (already guaranteed due to AsyncAssert state).
 }

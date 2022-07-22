@@ -83,8 +83,8 @@ class CLINT extends Module {
   val csr_reg_write_address = RegInit(UInt(Parameters.CSRRegisterAddrWidth), 0.U)
   val csr_reg_write_data = RegInit(UInt(Parameters.DataWidth), 0.U)
 
+  //interrupt handling occupies the CSR, so have structure hazard. need to stall all stages before mem(execute in three stage)
   io.ctrl_stall_flag := interrupt_state =/= InterruptState.Idle || csr_state =/= CSRState.Idle
-
   // Interrupt FSM
   when(io.instruction === InstructionsEnv.ecall || io.instruction === InstructionsEnv.ebreak) {
     interrupt_state := InterruptState.SyncAssert

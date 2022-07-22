@@ -20,7 +20,7 @@ import chisel3._
 import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{DummySlave, Memory, ROMLoader}
+import peripheral.{Memory, Timer}
 import riscv.core.fivestage.{CPU, ProgramCounter}
 import riscv.{Parameters, TestAnnotations}
 
@@ -66,7 +66,7 @@ class TestTopModule(exeFilename: String) extends Module {
   val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
   val mem = Module(new Memory(8192))
   val cpu = Module(new CPU)
-  val timer = Module(new peripheral.Timer)
+  val timer = Module(new Timer)
   val bus_switch = Module(new BusSwitch)
   val dummy = Module(new DummySlave)
   bus_switch.io.master <> cpu.io.axi4_channels

@@ -14,19 +14,7 @@
 
 package peripheral
 
-import bus.{AXI4LiteChannels, AXI4LiteSlave}
 import chisel3._
-import chisel3.experimental.{ChiselAnnotation, annotate}
-import chisel3.util._
-import chisel3.util.experimental.loadMemoryFromFileInline
-import firrtl.annotations.MemorySynthInit
-import riscv.Parameters
-
-import java.io.FileWriter
-import java.nio.file.Paths
-import javax.imageio.ImageIO
-
-
 
 
 class VGASync extends Module {
@@ -111,7 +99,6 @@ class VGASync extends Module {
 
 class VGADisplay extends Module {
   val io = IO(new Bundle() {
-    val rgb = Input(UInt(24.W))
     val x = Output(UInt(16.W))
     val y = Output(UInt(16.W))
     val video_on = Output(Bool())
