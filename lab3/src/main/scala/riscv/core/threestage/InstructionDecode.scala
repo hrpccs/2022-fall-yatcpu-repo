@@ -128,7 +128,7 @@ class InstructionDecode extends Module {
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
 
-    val ctrl_stall_flag = Output(UInt(Parameters.StallStateWidth))
+//    val ctrl_stall_flag = Output(UInt(Parameters.StallStateWidth))
 
     val ex_op1 = Output(UInt(Parameters.DataWidth))
     val ex_op2 = Output(UInt(Parameters.DataWidth))
@@ -178,7 +178,7 @@ class InstructionDecode extends Module {
   io.ex_op2 := 0.U
   io.ex_op1_jump := 0.U
   io.ex_op2_jump := 0.U
-  io.ctrl_stall_flag := false.B
+//  io.ctrl_stall_flag := false.B
   io.csr_read_address := 0.U
   io.ex_csr_read_data := io.csr_read_data
   io.ex_csr_write_enable := false.B

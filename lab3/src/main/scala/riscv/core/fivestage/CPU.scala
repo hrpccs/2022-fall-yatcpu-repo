@@ -14,9 +14,7 @@
 
 package riscv.core.fivestage
 
-import bus.{AXI4LiteChannels, AXI4LiteMaster}
 import chisel3._
-import riscv.Parameters
 import riscv.core.CPUBundle
 
 class CPU extends Module {
@@ -36,61 +34,11 @@ class CPU extends Module {
   val forwarding = Module(new Forwarding)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
-  val axi4_master = Module(new AXI4LiteMaster(Parameters.AddrBits, Parameters.DataBits))
-
-  axi4_master.io.channels <> io.axi4_channels
-  io.debug(0) := ex.io.reg1_data
-  io.debug(1) := ex.io.reg2_data
-  io.debug(2) := ex.io.instruction_address
-  io.debug(3) := ex.io.instruction
-  io.debug(4) := inst_fetch.io.jump_address_id
-  io.debug(5) := inst_fetch.io.jump_flag_id
-  io.bus_busy := axi4_master.io.bundle.busy
-
-  // The MEM module takes precedence over IF (but let the previous fetch finish)
-  val mem_granted = RegInit(false.B)
-  when(mem_granted) {
-    inst_fetch.io.instruction_valid := false.B
-    io.bus_address := mem.io.bus.address
-    axi4_master.io.bundle.read := mem.io.bus.read
-    axi4_master.io.bundle.address := mem.io.bus.address
-    axi4_master.io.bundle.write := mem.io.bus.write
-    axi4_master.io.bundle.write_data := mem.io.bus.write_data
-    axi4_master.io.bundle.write_strobe := mem.io.bus.write_strobe
-    when(!mem.io.bus.request) {
-      mem_granted := false.B
-    }
-  }.otherwise {
-    // Default to fetch instructions from main memory
-    mem_granted := false.B
-    axi4_master.io.bundle.read := !axi4_master.io.bundle.busy && !axi4_master.io.bundle.read_valid && !mem.io.bus.request
-    axi4_master.io.bundle.address := inst_fetch.io.bus_address
-    io.bus_address := inst_fetch.io.bus_address
-    axi4_master.io.bundle.write := false.B
-    axi4_master.io.bundle.write_data := 0.U
-    axi4_master.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-  }
-
-  when(mem.io.bus.request) {
-    when(!axi4_master.io.bundle.busy && !axi4_master.io.bundle.read_valid) {
-      mem_granted := true.B
-    }
-  }
-
-  inst_fetch.io.instruction_valid := io.instruction_valid && axi4_master.io.bundle.read_valid && !mem_granted
-  inst_fetch.io.bus_data := axi4_master.io.bundle.read_data
-
-  mem.io.bus.read_data := axi4_master.io.bundle.read_data
-  mem.io.bus.read_valid := axi4_master.io.bundle.read_valid
-  mem.io.bus.write_valid := axi4_master.io.bundle.write_valid
-  mem.io.bus.busy := axi4_master.io.bundle.busy
-  mem.io.bus.granted := mem_granted
 
   ctrl.io.jump_flag := id.io.if_jump_flag
   ctrl.io.stall_flag_if := inst_fetch.io.ctrl_stall_flag
   ctrl.io.stall_flag_mem := mem.io.ctrl_stall_flag
   ctrl.io.stall_flag_clint := clint.io.ctrl_stall_flag
-  ctrl.io.stall_flag_bus := io.stall_flag_bus
   ctrl.io.rs1_id := id.io.regs_reg1_read_address
   ctrl.io.rs2_id := id.io.regs_reg2_read_address
   ctrl.io.memory_read_enable_ex := ex2mem.io.memory_read_enable

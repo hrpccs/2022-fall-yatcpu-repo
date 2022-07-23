@@ -14,21 +14,18 @@
 
 package peripheral
 
-import bus.{AXI4LiteChannels, AXI4LiteSlave}
 import chisel3._
 import chisel3.util._
 import riscv.Parameters
 
 class Timer extends Module {
   val io = IO(new Bundle {
-    val channels = Flipped(new AXI4LiteChannels(8, Parameters.DataBits))
+    val bundle = new RAMBundle
     val signal_interrupt = Output(Bool())
 
     val debug_limit = Output(UInt(Parameters.DataWidth))
     val debug_enabled = Output(Bool())
   })
-  val slave = Module(new AXI4LiteSlave(8, Parameters.DataBits))
-  slave.io.channels <> io.channels
 
   val count = RegInit(0.U(32.W))
   val limit = RegInit(100000000.U(32.W))
@@ -36,24 +33,21 @@ class Timer extends Module {
   val enabled = RegInit(true.B)
   io.debug_enabled := enabled
 
-  slave.io.bundle.read_data := 0.U
-  slave.io.bundle.read_valid := true.B
-  when(slave.io.bundle.read) {
-    slave.io.bundle.read_data := MuxLookup(
-      slave.io.bundle.address,
+  io.bundle.read_data := 0.U
+  io.bundle.read_data := MuxLookup(
+      io.bundle.address,
       0.U,
       IndexedSeq(
         0x4.U -> limit,
         0x8.U -> enabled.asUInt,
       )
     )
-  }
-  when(slave.io.bundle.write) {
-    when(slave.io.bundle.address === 0x4.U) {
-      limit := slave.io.bundle.write_data
+  when(io.bundle.write_enable) {
+    when(io.bundle.address === 0x4.U) {
+      limit := io.bundle.write_data
       count := 0.U
-    }.elsewhen(slave.io.bundle.address === 0x8.U) {
-      enabled := slave.io.bundle.write_data =/= 0.U
+    }.elsewhen(io.bundle.address === 0x8.U) {
+      enabled := io.bundle.write_data =/= 0.U
     }
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2021 Howard Lau
+// Copyright 2022 hrpccs
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.debug
 
-import chisel3._
-import chisel3.util._
+#include "mmio.h" 
 
-object DTMRegisters {
-  val IDCODE = 0x01.U
-  val DTMCS = 0x10.U
-  val DMI = 0x11.U
-  val BYPASS1F = 0x1F.U
-}
 
-class DebugTransportModule extends Module {
-  val io = IO(new Bundle {
 
-  })
+int main(){
+    int *vram = ((int *) VRAM_BASE);
+    for (int i = 0; i < 600; ++i) vram[i] = 0x20202020;
 
-  val idcode = 0x1e200151.U
-  val dtmcs = RegInit("b00000000000000000101000011100001".U)
-  val dmi = RegInit(UInt(48.W))
+    for(int i = 0;i < 10;i++){
+        VRAM[i] = VRAM[i] + 0x10 + i;
+    }
+
+    return 0;
 }

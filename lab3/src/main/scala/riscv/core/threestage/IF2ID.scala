@@ -30,7 +30,8 @@ class IF2ID extends Module {
     val output_interrupt_flag = Output(UInt(Parameters.InterruptFlagWidth))
   })
 
-  val write_enable = io.stall_flag < StallStates.IF
+//  val write_enable = io.stall_flag < StallStates.IF
+  val write_enable = !io.stall_flag
   val flush_enable = io.jump_flag
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))

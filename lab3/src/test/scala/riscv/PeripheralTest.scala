@@ -18,7 +18,7 @@ import bus.{AXI4LiteMaster, AXI4LiteMasterBundle, AXI4LiteSlave, AXI4LiteSlaveBu
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{Memory, ROMLoader}
+import peripheral.{Memory, Timer}
 
 class TimerTest extends AnyFlatSpec with ChiselScalatestTester {
   class TestTimerLimit extends Module {
@@ -26,7 +26,7 @@ class TimerTest extends AnyFlatSpec with ChiselScalatestTester {
       val limit = Output(UInt())
       val bundle = new AXI4LiteMasterBundle(Parameters.AddrBits, Parameters.DataBits)
     })
-    val timer = Module(new peripheral.Timer)
+    val timer = Module(new Timer)
     val master = Module(new AXI4LiteMaster(Parameters.AddrBits, Parameters.DataBits))
     io.limit := timer.io.debug_limit
     master.io.bundle <> io.bundle
