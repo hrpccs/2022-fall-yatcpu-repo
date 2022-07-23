@@ -49,7 +49,6 @@ class Execute extends Module {
     val regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
 
-    //    val ctrl_stall_flag = Output(Bool())
     val ctrl_jump_flag = Output(Bool())
     val ctrl_jump_address = Output(UInt(Parameters.AddrWidth))
 
@@ -101,34 +100,6 @@ class Execute extends Module {
 
   jump_flag := false.B
   jump_address := 0.U
-
-//  def disable_control() = {
-//    //    disable_stall()
-//    disable_jump()
-//  }
-//
-//    def disable_stall() = {
-//      io.ctrl_stall_flag := false.B
-//    }
-//
-//  def check_interrupt_during_bus_transaction() = {
-//    // Store the interrupt and process later
-//    when(io.interrupt_assert) {
-//      pending_interrupt := true.B
-//      pending_interrupt_handler_address := io.interrupt_handler_address
-//      io.ctrl_jump_flag := false.B
-//    }
-//  }
-  // no bus , no need to wait
-  //  def on_bus_transaction_finished() = {
-  //    mem_access_state := MemoryAccessStates.Idle
-  //    io.ctrl_stall_flag := false.B
-  //    when(pending_interrupt) {
-  //      pending_interrupt := false.B
-  //      io.ctrl_jump_flag := true.B
-  //      io.ctrl_jump_address := pending_interrupt_handler_address
-  //    }
-  //  }
 
   when(opcode === InstructionTypes.I) {
     val mask = (0xFFFFFFFFL.U >> io.instruction(24, 20)).asUInt
@@ -231,7 +202,6 @@ class Execute extends Module {
     )
     jump_address := Fill(32, io.ctrl_jump_flag) & (io.op1_jump + io.op2_jump)
   }.elsewhen(opcode === Instructions.jal || opcode === Instructions.jalr) {
-//    disable_stall()
     jump_flag := true.B
     jump_address := io.op1_jump + io.op2_jump
     io.regs_write_data := io.op1 + io.op2

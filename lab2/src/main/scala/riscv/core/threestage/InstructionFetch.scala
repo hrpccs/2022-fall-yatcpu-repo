@@ -24,7 +24,6 @@ object ProgramCounter {
 
 class InstructionFetch extends Module {
   val io = IO(new Bundle {
-//    val stall_flag_ctrl = Input(Bool())
     val jump_flag_ctrl = Input(Bool())
     val jump_address_ctrl = Input(UInt(Parameters.AddrWidth))
     val rom_instruction = Input(UInt(Parameters.DataWidth))
@@ -32,20 +31,12 @@ class InstructionFetch extends Module {
     val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
-//    val ctrl_stall_flag = Output(Bool())
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
-  pc := MuxCase(
-    pc + 4.U,
-    IndexedSeq(
-      io.jump_flag_ctrl -> io.jump_address_ctrl,
-//      (io.stall_flag_ctrl >= StallStates.PC) -> pc
-    )
-  )
+  pc := Mux(io.jump_flag_ctrl, io.jump_address_ctrl, pc + 4.U)
 
   io.rom_instruction_address := pc
   io.id_instruction_address := pc
   io.id_instruction := io.rom_instruction
-//  io.ctrl_stall_flag := pending_jump
 }
