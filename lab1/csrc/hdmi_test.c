@@ -21,9 +21,9 @@ int main(){
     int *vram = ((int *) VRAM_BASE);
     for (int i = 0; i < 600; ++i) vram[i] = 0x20202020;
 
-    for(int i = 0;i < 10;i++){
-        VRAM[i] = VRAM[i] + 0x10 + i;
+    for(int i = 0;i < 12;i++){
+        VRAM[i] = "hello world!"[i];
     }
 
-    return 0;
+    while(1);
 }

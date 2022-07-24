@@ -1,4 +1,4 @@
-// Copyright 2021 Howard Lau
+// Copyright 2022 Howard Lau
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.debug
+package riscv
 
 import chisel3._
+import peripheral.RAMBundle
 
-object DMRegisters {
-  val DATA0 = 0x04.U
-  val DATA11 = 0x0F.U
-  val DMCONTROL = 0x10.U
-  val DMSTATUS = 0x11.U
-  val HARTINFO = 0x12.U
-  val ABSTRACTCS = 0x16.U
-  val COMMAND = 0x17.U
-}
-
-class DebugModule extends Module {
-  val io = IO(new Bundle {
-
-  })
+class CPUBundle extends Bundle {
+  val instruction_address = Output(UInt(Parameters.AddrWidth))
+  val instruction = Input(UInt(Parameters.DataWidth))
+  val memory_bundle = Flipped(new RAMBundle)
+  val deviceSelect = Output(UInt(Parameters.SlaveDeviceCountBits.W))
+  val debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+  val debug_read_data = Output(UInt(Parameters.DataWidth))
 }

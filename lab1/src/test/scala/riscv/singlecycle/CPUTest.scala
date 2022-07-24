@@ -19,7 +19,7 @@ import chisel3._
 import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{InstructionROM, Memory}
+import peripheral.{CharacterBufferInfo, CharacterDisplay, InstructionROM, Memory, SyncBlockRAM}
 import riscv.core.{CPU, ProgramCounter}
 import riscv.{Parameters, TestAnnotations}
 
@@ -38,13 +38,13 @@ class TestTopModule(exeFilename: String) extends Module {
   val cpu = Module(new CPU)
   val inst_mem = Module(new InstructionROM(exeFilename))
 
-  mem.io.bundle <> cpu.io.DataMemBundle
-  inst_mem.io.address := (cpu.io.InstMemBundle.address - ProgramCounter.EntryAddress) >> 2
-  cpu.io.InstMemBundle.read_data := inst_mem.io.data
+  mem.io.bundle <> cpu.io.memory_bundle
+  inst_mem.io.address := (cpu.io.instruction_address - ProgramCounter.EntryAddress) >> 2
+  cpu.io.instruction := inst_mem.io.data
 
   mem.io.debug_read_address := io.mem_debug_read_address
-  cpu.io.reg_debug_read_address := io.regs_debug_read_address
-  io.regs_debug_read_data := cpu.io.reg_debug_read_data
+  cpu.io.debug_read_address := io.regs_debug_read_address
+  io.regs_debug_read_data := cpu.io.debug_read_data
   io.mem_debug_read_data := mem.io.debug_read_data
 }
 

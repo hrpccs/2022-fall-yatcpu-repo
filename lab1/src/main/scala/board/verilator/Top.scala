@@ -17,25 +17,24 @@ package board.verilator
 import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import peripheral._
-import riscv.Parameters
+import riscv.{CPUBundle, Parameters}
 import riscv.core.CPU
 
 class Top extends Module {
-  val io = IO(new Bundle() {
-    val cpu_debug_read_address = Input(UInt(Parameters.AddrWidth))
-    val cpu_debug_read_data = Output(UInt(Parameters.DataWidth))
-
-    val DataMemBundle = new RamAccessBundle
-    val InstMemBundle = new RamAccessBundle
-  })
+  val io = IO(new CPUBundle)
 
   val cpu = Module(new CPU)
 
-  cpu.io.reg_debug_read_address := io.cpu_debug_read_address
-  io.cpu_debug_read_data := cpu.io.reg_debug_read_data
+  io.deviceSelect := 0.U
+  cpu.io.debug_read_address := io.debug_read_address
+  io.debug_read_data := cpu.io.debug_read_data
 
-  io.DataMemBundle <> cpu.io.DataMemBundle
-  io.InstMemBundle <> cpu.io.InstMemBundle
+  io.memory_bundle <> cpu.io.memory_bundle
+  io.instruction_address := cpu.io.instruction_address
+  cpu.io.instruction := io.instruction
+
+
+
 }
 
 object VerilogGenerator extends App {

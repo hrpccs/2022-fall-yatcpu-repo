@@ -58,16 +58,18 @@ class Top extends Module {
   mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
   mem.io.debug_read_address := 0.U
 
-  cpu.io.reg_debug_read_address := 0.U
+  cpu.io.debug_read_address := 0.U
 
-  when(cpu.io.DataMemBundle.address(29)) {
-    display.io.bundle <> cpu.io.DataMemBundle
+  mem.io.bundle <> cpu.io.memory_bundle
+
+  when(cpu.io.deviceSelect === 1.U) {
+    display.io.bundle <> cpu.io.memory_bundle
   }.otherwise {
-    mem.io.bundle <> cpu.io.DataMemBundle
+    mem.io.bundle <> cpu.io.memory_bundle
   }
 
-  inst_mem.io.address := (cpu.io.InstMemBundle.address - ProgramCounter.EntryAddress) >> 2
-  cpu.io.InstMemBundle.read_data := inst_mem.io.data
+  inst_mem.io.address := (cpu.io.instruction_address - ProgramCounter.EntryAddress) >> 2
+  cpu.io.instruction := inst_mem.io.data
 
   io.hsync := vga_display.io.hsync
   io.vsync := vga_display.io.vsync

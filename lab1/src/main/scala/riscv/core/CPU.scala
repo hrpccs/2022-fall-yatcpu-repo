@@ -15,16 +15,12 @@
 package riscv.core
 
 import chisel3._
+import chisel3.util.Cat
 import peripheral.RamAccessBundle
-import riscv.Parameters
+import riscv.{CPUBundle, Parameters}
 
 class CPU extends Module {
-  val io = IO(new Bundle {
-    val DataMemBundle = new RamAccessBundle
-    val InstMemBundle = new RamAccessBundle
-    val reg_debug_read_address = Input(UInt(Parameters.AddrWidth))
-    val reg_debug_read_data = Output(UInt(Parameters.DataWidth))
-  })
+  val io = IO(new CPUBundle)
 
   val regs = Module(new RegisterFile)
   val inst_fetch = Module(new InstructionFetch)
@@ -33,11 +29,14 @@ class CPU extends Module {
   val mem = Module(new MemoryAccess)
   val wb = Module(new WriteBack)
 
+
+  io.deviceSelect := mem.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
+
   inst_fetch.io.jump_address_id := id.io.if_jump_address
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag
 
-  io.DataMemBundle <> mem.io.bundle
-  io.InstMemBundle <> inst_fetch.io.bundle
+  inst_fetch.io.rom_instruction := io.instruction
+  io.instruction_address := inst_fetch.io.rom_instruction_address
 
   regs.io.write_enable := id.io.ex_reg_write_enable
   regs.io.write_address := id.io.ex_reg_write_address
@@ -45,8 +44,8 @@ class CPU extends Module {
   regs.io.read_address1 := id.io.regs_reg1_read_address
   regs.io.read_address2 := id.io.regs_reg2_read_address
 
-  regs.io.debug_read_address := io.reg_debug_read_address
-  io.reg_debug_read_data := regs.io.debug_read_data
+  regs.io.debug_read_address := io.debug_read_address
+  io.debug_read_data := regs.io.debug_read_data
 
   id.io.reg1_data := regs.io.read_data1
   id.io.reg2_data := regs.io.read_data2
@@ -66,6 +65,12 @@ class CPU extends Module {
   mem.io.memory_read_enable := id.io.ex_memory_read_enable
   mem.io.memory_write_enable := id.io.ex_memory_write_enable
   mem.io.funct3 := inst_fetch.io.id_instruction(14, 12)
+
+  io.memory_bundle.address := Cat(0.U(Parameters.SlaveDeviceCountBits.W),mem.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0))
+  io.memory_bundle.write_enable := mem.io.memory_bundle.write_enable
+  io.memory_bundle.write_data := mem.io.memory_bundle.write_data
+  io.memory_bundle.write_strobe := mem.io.memory_bundle.write_strobe
+  mem.io.memory_bundle.read_data := io.memory_bundle.read_data
 
   wb.io.instruction_address := inst_fetch.io.id_instruction_address
   wb.io.alu_result := ex.io.mem_alu_result

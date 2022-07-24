@@ -191,23 +191,23 @@ class Simulator {
         top->reset = 0;
       }
 //      top->io_mem_slave_read_data = memory_read_word;
-      top->io_DataMemBundle_read_data = data_memory_read_word;
-      top->io_InstMemBundle_read_data = inst_memory_read_word;
+      top->io_memory_bundle_read_data = data_memory_read_word;
+      top->io_instruction = inst_memory_read_word;
       top->clock = !top->clock;
       top->eval();
 
 
-	  data_memory_read_word = memory->read(top->io_DataMemBundle_address);
+	  data_memory_read_word = memory->read(top->io_memory_bundle_address);
 
 
-	  inst_memory_read_word = memory->readInst(top->io_InstMemBundle_address);
+	  inst_memory_read_word = memory->readInst(top->io_instruction_address);
 
-      if (top->io_DataMemBundle_write_enable) {
-        memory_write_strobe[0] = top->io_DataMemBundle_write_strobe_0;
-        memory_write_strobe[1] = top->io_DataMemBundle_write_strobe_1;
-        memory_write_strobe[2] = top->io_DataMemBundle_write_strobe_2;
-        memory_write_strobe[3] = top->io_DataMemBundle_write_strobe_3;
-        memory->write(top->io_DataMemBundle_address, top->io_DataMemBundle_write_data,
+      if (top->io_memory_bundle_write_enable) {
+        memory_write_strobe[0] = top->io_memory_bundle_write_strobe_0;
+        memory_write_strobe[1] = top->io_memory_bundle_write_strobe_1;
+        memory_write_strobe[2] = top->io_memory_bundle_write_strobe_2;
+        memory_write_strobe[3] = top->io_memory_bundle_write_strobe_3;
+        memory->write(top->io_memory_bundle_address, top->io_memory_bundle_write_data,
                      memory_write_strobe);
       }
       vcd_tracer->dump(main_time);
