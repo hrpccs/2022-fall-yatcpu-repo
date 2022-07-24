@@ -21,7 +21,7 @@ import riscv.core.CPU
 import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
-  val binaryFilename = "sb.asmbin"
+  val binaryFilename = "tetris.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())

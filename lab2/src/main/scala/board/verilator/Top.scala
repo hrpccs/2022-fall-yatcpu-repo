@@ -31,7 +31,7 @@ class Top extends Module {
     val memory_bundle = Flipped(new RAMBundle)
   })
 
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
+  val cpu = Module(new CPU(ImplementationType.FiveStage))
 
   cpu.io.debug_read_address := io.reg_debug_read_address
   io.reg_debug_read_data := cpu.io.debug_read_data
