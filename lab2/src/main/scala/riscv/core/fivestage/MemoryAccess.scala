@@ -36,12 +36,6 @@ class MemoryAccess extends Module {
     val bundle = new RamAccessBundle
   })
   val mem_address_index = io.alu_result(log2Up(Parameters.WordSize) - 1, 0).asUInt
-  val mem_access_state = RegInit(MemoryAccessStates.Idle)
-
-  def on_bus_transaction_finished() = {
-    mem_access_state := MemoryAccessStates.Idle
-    io.ctrl_stall_flag := false.B
-  }
 
   io.bundle.write_enable := false.B
   io.bundle.write_data := 0.U

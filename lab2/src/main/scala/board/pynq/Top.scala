@@ -29,7 +29,7 @@ class Top extends Module {
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
   })
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
+  val cpu = Module(new CPU(ImplementationType.FiveStage))
   cpu.io.interrupt_flag := 0.U
   cpu.io.debug_read_address := 0.U
 
@@ -56,8 +56,8 @@ class Top extends Module {
     mem.io.bundle <> cpu.io.memory_bundle
   }
 
-  display.io.x := hdmi_display.io.x_next
-  display.io.y := hdmi_display.io.y_next
+  display.io.x := hdmi_display.io.x
+  display.io.y := hdmi_display.io.y
   display.io.video_on := hdmi_display.io.video_on
   hdmi_display.io.rgb := display.io.rgb
 
