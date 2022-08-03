@@ -27,11 +27,9 @@ class PipelineRegister(width: Int = Parameters.DataBits, defaultValue: UInt = 0.
 
   val reg = RegInit(UInt(width.W), defaultValue)
   when(io.write_enable) {
-    when(io.flush_enable) {
-      reg := defaultValue
-    }.otherwise {
-      reg := io.in
-    }
+    reg := io.in
+  }.elsewhen(io.flush_enable) {
+    reg := defaultValue
   }
   io.out := reg
 }

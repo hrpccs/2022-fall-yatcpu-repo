@@ -45,7 +45,7 @@ class EX2MEM extends Module {
     val output_alu_result = Output(UInt(Parameters.DataWidth))
     val output_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
-  val write_enable = !io.stall_flag
+  val write_enable = !io.stall_flag && !io.flush_enable
 
   val regs_write_enable = Module(new PipelineRegister(1))
   regs_write_enable.io.in := io.regs_write_enable

@@ -16,13 +16,12 @@ package board.pynq
 
 import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
-import chisel3.util.MuxLookup
 import peripheral._
 import riscv.core.CPU
 import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
-  val binaryFilename = "debug.asmbin"
+  val binaryFilename = "tetris.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
@@ -30,46 +29,49 @@ class Top extends Module {
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
 
+    val tx = Output(Bool())
+    val rx = Input(Bool())
+
     val led = Output(UInt(4.W))
   })
-
   io.led := 15.U(4.W)
+
+  val cpu = Module(new CPU(ImplementationType.FiveStage))
+  cpu.io.interrupt_flag := 0.U
+  cpu.io.debug_read_address := 0.U
+
+  val instruction_rom = Module(new InstructionROM(binaryFilename))
+  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := instruction_rom.io.data
+
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
   val timer = Module(new Timer)
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  cpu.io.interrupt_flag := timer.io.signal_interrupt
-  cpu.io.debug_read_address := 0.U
-
-  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
-  cpu.io.instruction := instruction_rom.io.data
-
-  display.io.bundle.address := 0.U
-  display.io.bundle.write_enable := false.B
-  display.io.bundle.write_data := 0.U
-  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-  mem.io.bundle.address := 0.U
-  mem.io.bundle.write_enable := false.B
-  mem.io.bundle.write_data := 0.U
-  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
+  val dummy = Module(new Dummy)
+  val deviceSelect = cpu.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
+  display.io.bundle <> dummy.io.bundle
+  mem.io.bundle <> dummy.io.bundle
+  timer.io.bundle <> dummy.io.bundle
+  uart.io.bundle <> dummy.io.bundle
+  io.tx := uart.io.txd
+  uart.io.rxd := io.rx
+  cpu.io.interrupt_flag := uart.io.signal_interrupt ## timer.io.signal_interrupt
   mem.io.debug_read_address := 0.U
-  timer.io.bundle.address := 0.U
-  timer.io.bundle.write_enable := false.B
-  timer.io.bundle.write_data := 0.U
-  timer.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-
-  when(cpu.io.deviceSelect === 4.U) {
+  cpu.io.debug_read_address := 0.U
+  when(deviceSelect === 4.U) {
     timer.io.bundle <> cpu.io.memory_bundle
-  }.elsewhen(cpu.io.deviceSelect === 1.U) {
+  }.elsewhen(deviceSelect === 2.U) {
+    uart.io.bundle <> cpu.io.memory_bundle
+  }.elsewhen(deviceSelect === 1.U) {
     display.io.bundle <> cpu.io.memory_bundle
   }.otherwise {
     mem.io.bundle <> cpu.io.memory_bundle
   }
 
-  display.io.x := hdmi_display.io.x_next
-  display.io.y := hdmi_display.io.y_next
+  display.io.x := hdmi_display.io.x
+  display.io.y := hdmi_display.io.y
   display.io.video_on := hdmi_display.io.video_on
   hdmi_display.io.rgb := display.io.rgb
 

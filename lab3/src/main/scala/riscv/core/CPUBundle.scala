@@ -23,7 +23,6 @@ class CPUBundle extends Bundle {
   val instruction = Input(UInt(Parameters.DataWidth))
   val memory_bundle = Flipped(new RAMBundle)
   val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
-  val deviceSelect = Output(UInt(Parameters.SlaveDeviceCountBits.W))
   val debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
   val debug_read_data = Output(UInt(Parameters.DataWidth))
 }

@@ -39,7 +39,7 @@ class InstructionFetch extends Module {
   pc := MuxCase(
     pc + 4.U,
     IndexedSeq(
-      io.jump_flag_id -> io.jump_address_id,
+      (io.jump_flag_id && !io.stall_flag_ctrl) -> io.jump_address_id,
       io.stall_flag_ctrl -> pc
     )
   )

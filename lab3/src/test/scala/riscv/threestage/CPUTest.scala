@@ -14,41 +14,13 @@
 
 package riscv.threestage
 
-import board.basys3.BootStates
-import bus.BusSwitch
 import chisel3._
-import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{Memory, Timer}
-import riscv.core.threestage.ProgramCounter
+import peripheral.{InstructionROM, Memory}
+import riscv.core.CPU
 import riscv.{Parameters, TestAnnotations}
 
-import java.nio.{ByteBuffer, ByteOrder}
-
-class TestInstructionROM(asmBin: String) extends Module {
-  val io = IO(new Bundle {
-    val address = Input(UInt(32.W))
-    val data = Output(UInt(32.W))
-  })
-
-  val (insts, capacity) = loadAsmBinary(asmBin)
-  val mem = RegInit(insts)
-  io.data := mem(io.address)
-
-  def loadAsmBinary(filename: String) = {
-    val inputStream = getClass.getClassLoader.getResourceAsStream(filename)
-    var instructions = new Array[BigInt](0)
-    val arr = new Array[Byte](4)
-    while (inputStream.read(arr) == 4) {
-      val instBuf = ByteBuffer.wrap(arr)
-      instBuf.order(ByteOrder.LITTLE_ENDIAN)
-      val inst = BigInt(instBuf.getInt() & 0xFFFFFFFFL)
-      instructions = instructions :+ inst
-    }
-    (VecInit((instructions.map(inst => inst.U(32.W))).toIndexedSeq), instructions.length)
-  }
-}
 
 class TestTopModule(exeFilename: String) extends Module {
   val io = IO(new Bundle {
@@ -56,56 +28,29 @@ class TestTopModule(exeFilename: String) extends Module {
     val regs_debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_debug_read_data = Output(UInt(Parameters.DataWidth))
     val mem_debug_read_data = Output(UInt(Parameters.DataWidth))
-
-    val interrupt = Input(UInt(Parameters.InterruptFlagWidth))
-    val boot_state = Output(UInt())
   })
 
-  val deviceSelect = io.mem_debug_read_address(31,29)
-  val addressInDevice = Cat(0.U(3.W),io.mem_debug_read_address(28,0))
-
-  val instruction_rom = Module(new TestInstructionROM(exeFilename))
   val mem = Module(new Memory(8192))
   val cpu = Module(new CPU)
-  val timer = Module(new Timer)
+  val inst_mem = Module(new InstructionROM(exeFilename))
 
-  instruction_rom.io.address := rom_loader.io.rom_address
-  rom_loader.io.channels <> dummy.io.channels
-  switch(boot_state) {
-    is(BootStates.Init) {
-      rom_loader.io.load_start := true.B
-      boot_state := BootStates.Loading
-      rom_loader.io.channels <> mem.io.channels
-    }
-    is(BootStates.Loading) {
-      rom_loader.io.load_start := false.B
-      rom_loader.io.channels <> mem.io.channels
-      when(rom_loader.io.load_finished) {
-        boot_state := BootStates.Finished
-      }
-    }
-    is(BootStates.Finished) {
-      rom_loader.io.load_start := false.B
-      cpu.io.stall_flag_bus := false.B
-      cpu.io.instruction_valid := true.B
-    }
-  }
-  bus_switch.io.slaves(4) <> timer.io.channels
+  mem.io.bundle <> cpu.io.memory_bundle
+  inst_mem.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := inst_mem.io.data
 
   mem.io.debug_read_address := io.mem_debug_read_address
   cpu.io.debug_read_address := io.regs_debug_read_address
   io.regs_debug_read_data := cpu.io.debug_read_data
   io.mem_debug_read_data := mem.io.debug_read_data
 
-  cpu.io.interrupt_flag := io.interrupt
+  cpu.io.interrupt_flag := 0.U
 }
 
 
 class FibonacciTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "CPU"
+  behavior of "Three-stage Pipeline CPU"
   it should "calculate recursively fibonacci(10)" in {
     test(new TestTopModule("fibonacci.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      c.io.interrupt.poke(0.U)
       for (i <- 1 to 50) {
         c.clock.step(1000)
         c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
@@ -119,10 +64,9 @@ class FibonacciTest extends AnyFlatSpec with ChiselScalatestTester {
 }
 
 class QuicksortTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "CPU"
+  behavior of "Three-stage Pipeline CPU"
   it should "quicksort 10 numbers" in {
     test(new TestTopModule("quicksort.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      c.io.interrupt.poke(0.U)
       for (i <- 1 to 50) {
         c.clock.step(1000)
         c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
@@ -136,28 +80,10 @@ class QuicksortTest extends AnyFlatSpec with ChiselScalatestTester {
   }
 }
 
-class MMIOTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "CPU"
-  it should "read and write timer register" in {
-    test(new TestTopModule("mmio.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      c.io.interrupt.poke(0.U)
-      for (i <- 1 to 200) {
-        c.clock.step()
-        c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
-      }
-      c.io.regs_debug_read_address.poke(5.U)
-      c.io.regs_debug_read_data.expect(100000000.U)
-      c.io.regs_debug_read_address.poke(6.U)
-      c.io.regs_debug_read_data.expect(0xBEEF.U)
-    }
-  }
-}
-
 class ByteAccessTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "CPU"
+  behavior of "Three-stage Pipeline CPU"
   it should "store and load single byte" in {
     test(new TestTopModule("sb.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      c.io.interrupt.poke(0.U)
       for (i <- 1 to 500) {
         c.clock.step()
         c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
@@ -171,4 +97,3 @@ class ByteAccessTest extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 }
-

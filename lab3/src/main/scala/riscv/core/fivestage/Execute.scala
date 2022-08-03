@@ -35,10 +35,11 @@ class Execute extends Module {
     val csr_read_data = Input(UInt(Parameters.DataWidth))
     val forward_from_mem = Input(UInt(Parameters.DataWidth))
     val forward_from_wb = Input(UInt(Parameters.DataWidth))
-    val aluop1_forward = Input(UInt(2.W))
-    val aluop2_forward = Input(UInt(2.W))
+    val reg1_forward = Input(UInt(2.W))
+    val reg2_forward = Input(UInt(2.W))
 
     val mem_alu_result = Output(UInt(Parameters.DataWidth))
+    val mem_reg2_data = Output(UInt(Parameters.DataWidth))
     val csr_write_data = Output(UInt(Parameters.DataWidth))
   })
 
@@ -55,31 +56,36 @@ class Execute extends Module {
   alu_ctrl.io.funct3 := funct3
   alu_ctrl.io.funct7 := funct7
   alu.io.func := alu_ctrl.io.alu_funct
+
+  val reg1_data = MuxLookup(
+    io.reg1_forward,
+    io.reg1_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
+    )
+  )
   alu.io.op1 := Mux(
     io.aluop1_source === ALUOp1Source.InstructionAddress,
     io.instruction_address,
-    MuxLookup(
-      io.aluop1_forward,
-      io.reg1_data,
-      IndexedSeq(
-        ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-        ForwardingType.ForwardFromWB -> io.forward_from_wb
-      )
+    reg1_data
+  )
+
+  val reg2_data = MuxLookup(
+    io.reg2_forward,
+    io.reg2_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
     )
   )
   alu.io.op2 := Mux(
     io.aluop2_source === ALUOp2Source.Immediate,
     io.immediate,
-    MuxLookup(
-      io.aluop2_forward,
-      io.reg2_data,
-      IndexedSeq(
-        ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-        ForwardingType.ForwardFromWB -> io.forward_from_wb
-      )
-    )
+    reg2_data
   )
   io.mem_alu_result := alu.io.result
+  io.mem_reg2_data := reg2_data
   io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
     InstructionsTypeCSR.csrrw -> io.reg1_data,
     InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~io.reg1_data).asUInt),

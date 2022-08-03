@@ -34,11 +34,7 @@ class InstructionFetch extends Module {
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
-  pc := Mux(
-    io.jump_flag_ctrl,
-    io.jump_address_ctrl,
-    pc + 4.U,
-  )
+  pc := Mux(io.jump_flag_ctrl, io.jump_address_ctrl, pc + 4.U)
 
   io.rom_instruction_address := pc
   io.id_instruction_address := pc

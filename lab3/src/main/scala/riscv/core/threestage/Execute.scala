@@ -19,6 +19,7 @@ import chisel3.experimental.ChiselEnum
 import chisel3.util._
 import peripheral.RAMBundle
 import riscv.Parameters
+import riscv.core.BusBundle
 
 object MemoryAccessStates extends ChiselEnum {
   val Idle, Read, Write, ReadWrite = Value
@@ -48,7 +49,6 @@ class Execute extends Module {
     val regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
 
-    //    val ctrl_stall_flag = Output(Bool())
     val ctrl_jump_flag = Output(Bool())
     val ctrl_jump_address = Output(UInt(Parameters.AddrWidth))
 
@@ -100,8 +100,6 @@ class Execute extends Module {
 
   jump_flag := false.B
   jump_address := 0.U
-
-  // no bus , no need to wait
 
   when(opcode === InstructionTypes.I) {
     val mask = (0xFFFFFFFFL.U >> io.instruction(24, 20)).asUInt
@@ -204,7 +202,6 @@ class Execute extends Module {
     )
     jump_address := Fill(32, io.ctrl_jump_flag) & (io.op1_jump + io.op2_jump)
   }.elsewhen(opcode === Instructions.jal || opcode === Instructions.jalr) {
-//    disable_stall()
     jump_flag := true.B
     jump_address := io.op1_jump + io.op2_jump
     io.regs_write_data := io.op1 + io.op2

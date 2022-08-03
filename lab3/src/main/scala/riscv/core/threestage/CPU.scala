@@ -15,14 +15,11 @@
 package riscv.core.threestage
 
 import chisel3._
-import chisel3.util.Cat
 import riscv.core.CPUBundle
-import riscv.Parameters
 
 class CPU extends Module {
   val io = IO(new CPUBundle)
 
-  val ctrl = Module(new Control)
   val regs = Module(new RegisterFile)
   val inst_fetch = Module(new InstructionFetch)
   val if2id = Module(new IF2ID)
@@ -31,13 +28,6 @@ class CPU extends Module {
   val ex = Module(new Execute)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
-
-  io.deviceSelect := ex.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
-
-
-  ctrl.io.jump_flag := ex.io.ctrl_jump_flag
-  ctrl.io.jump_address := ex.io.ctrl_jump_address
-  ctrl.io.stall_flag_clint := clint.io.ctrl_stall_flag
 
   regs.io.write_enable := ex.io.regs_write_enable
   regs.io.write_address := ex.io.regs_write_address
@@ -49,14 +39,13 @@ class CPU extends Module {
   io.debug_read_data := regs.io.debug_read_data
 
   io.instruction_address := inst_fetch.io.rom_instruction_address
-  inst_fetch.io.jump_flag_ctrl := ctrl.io.pc_jump_flag
-  inst_fetch.io.jump_address_ctrl := ctrl.io.pc_jump_address
+  inst_fetch.io.jump_flag_ctrl := ex.io.ctrl_jump_flag
+  inst_fetch.io.jump_address_ctrl := ex.io.ctrl_jump_address
   inst_fetch.io.rom_instruction := io.instruction
 
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.id_instruction_address
-  if2id.io.stall_flag := ctrl.io.if_stall_flag
-  if2id.io.jump_flag := ctrl.io.pc_jump_flag
+  if2id.io.jump_flag := ex.io.ctrl_jump_flag
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.reg1_data := regs.io.read_data1
@@ -78,8 +67,7 @@ class CPU extends Module {
   id2ex.io.reg2_data := id.io.ex_reg2_data
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable
   id2ex.io.regs_write_address := id.io.ex_reg_write_address
-  id2ex.io.stall_flag := ctrl.io.id_stall_flag
-  id2ex.io.jump_flag := ctrl.io.pc_jump_flag
+  id2ex.io.jump_flag := ex.io.ctrl_jump_flag
 
   ex.io.instruction := id2ex.io.output_instruction
   ex.io.instruction_address := id2ex.io.output_instruction_address
@@ -96,11 +84,7 @@ class CPU extends Module {
   ex.io.regs_write_address_id := id2ex.io.output_regs_write_address
   ex.io.interrupt_assert := clint.io.ex_interrupt_assert
   ex.io.interrupt_handler_address := clint.io.ex_interrupt_handler_address
-  io.memory_bundle.address := Cat(0.U(Parameters.SlaveDeviceCountBits.W),ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0))
-  io.memory_bundle.write_enable := ex.io.memory_bundle.write_enable
-  io.memory_bundle.write_data := ex.io.memory_bundle.write_data
-  io.memory_bundle.write_strobe := ex.io.memory_bundle.write_strobe
-  ex.io.memory_bundle.read_data := io.memory_bundle.read_data
+  ex.io.memory_bundle <> io.memory_bundle
 
   clint.io.instruction := id.io.ex_instruction
   clint.io.instruction_address_id := id.io.instruction_address
