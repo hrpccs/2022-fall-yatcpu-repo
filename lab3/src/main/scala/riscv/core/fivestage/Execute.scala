@@ -19,9 +19,6 @@ import chisel3.experimental.ChiselEnum
 import chisel3.util._
 import riscv.Parameters
 
-object MemoryAccessStates extends ChiselEnum {
-  val Idle, Read, Write, ReadWrite = Value
-}
 
 class Execute extends Module {
   val io = IO(new Bundle {
@@ -87,9 +84,9 @@ class Execute extends Module {
   io.mem_alu_result := alu.io.result
   io.mem_reg2_data := reg2_data
   io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
-    InstructionsTypeCSR.csrrw -> io.reg1_data,
-    InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~io.reg1_data).asUInt),
-    InstructionsTypeCSR.csrrs -> io.csr_read_data.|(io.reg1_data),
+    InstructionsTypeCSR.csrrw -> reg1_data,
+    InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~reg1_data).asUInt),
+    InstructionsTypeCSR.csrrs -> io.csr_read_data.|(reg1_data),
     InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
     InstructionsTypeCSR.csrrci -> io.csr_read_data.&((~Cat(0.U(27.W), uimm)).asUInt),
     InstructionsTypeCSR.csrrsi -> io.csr_read_data.|(Cat(0.U(27.W), uimm)),

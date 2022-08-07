@@ -39,7 +39,6 @@ class CPU extends Module {
   ctrl.io.jump_flag := id.io.if_jump_flag
   ctrl.io.stall_flag_if := inst_fetch.io.ctrl_stall_flag
   ctrl.io.stall_flag_mem := mem.io.ctrl_stall_flag
-  ctrl.io.stall_flag_clint := clint.io.ctrl_stall_flag
   ctrl.io.jump_instruction_id := id.io.ctrl_jump_instruction
   ctrl.io.rs1_id := id.io.regs_reg1_read_address
   ctrl.io.rs2_id := id.io.regs_reg2_read_address
@@ -98,7 +97,7 @@ class CPU extends Module {
   id2ex.io.csr_address := id.io.ex_csr_address
   id2ex.io.memory_read_enable := id.io.ex_memory_read_enable
   id2ex.io.memory_write_enable := id.io.ex_memory_write_enable
-  id2ex.io.csr_read_data := csr_regs.io.id_reg_data
+  id2ex.io.csr_read_data := csr_regs.io.id_reg_read_data
 
   ex.io.instruction := id2ex.io.output_instruction
   ex.io.instruction_address := id2ex.io.output_instruction_address
@@ -159,22 +158,15 @@ class CPU extends Module {
   forwarding.io.rd_wb := mem2wb.io.output_regs_write_address
   forwarding.io.reg_write_enable_wb := mem2wb.io.output_regs_write_enable
 
-  clint.io.instruction := if2id.io.output_instruction
+  clint.io.instruction_id := if2id.io.output_instruction
   clint.io.instruction_address_if := inst_fetch.io.id_instruction_address
   clint.io.jump_flag := id.io.if_jump_flag
   clint.io.jump_address := ex2mem.io.output_alu_result
-  clint.io.csr_mepc := csr_regs.io.clint_csr_mepc
-  clint.io.csr_mtvec := csr_regs.io.clint_csr_mtvec
-  clint.io.csr_mstatus := csr_regs.io.clint_csr_mstatus
-  clint.io.interrupt_enable := csr_regs.io.interrupt_enable
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag
+  clint.io.csr_bundle <> csr_regs.io.clint_access_bundle
 
+  csr_regs.io.reg_read_address_id := id.io.ex_csr_address
   csr_regs.io.reg_write_enable_ex := id2ex.io.output_csr_write_enable
   csr_regs.io.reg_write_address_ex := id2ex.io.output_csr_address
   csr_regs.io.reg_write_data_ex := ex.io.csr_write_data
-  csr_regs.io.reg_read_address_id := id.io.ex_csr_address
-  csr_regs.io.reg_write_enable_clint := clint.io.csr_reg_write_enable
-  csr_regs.io.reg_write_address_clint := clint.io.csr_reg_write_address
-  csr_regs.io.reg_write_data_clint := clint.io.csr_reg_write_data
-  csr_regs.io.reg_read_address_clint := 0.U
 }

@@ -15,7 +15,7 @@
 package riscv.core.fivestage
 
 import chisel3._
-import chisel3.util._
+import chisel3.util.{MuxLookup, _}
 import riscv.Parameters
 
 object InterruptStatus {
@@ -37,10 +37,21 @@ object InterruptState {
 
 object CSRState {
   val Idle = 0x0.U
-  val MSTATUS = 0x1.U
-  val MEPC = 0x2.U
-  val MRET = 0x3.U
-  val MCAUSE = 0x4.U
+  val Traping = 0x1.U
+  val Mret = 0x2.U
+}
+
+class CSRDirectAccessBundle extends Bundle {
+  val mstatus = Input(UInt(Parameters.DataWidth))
+  val mepc = Input(UInt(Parameters.DataWidth))
+  val mcause = Input(UInt(Parameters.DataWidth))
+  val mtvec = Input(UInt(Parameters.DataWidth))
+
+  val mstatus_write_data= Output(UInt(Parameters.DataWidth))
+  val mepc_write_data= Output(UInt(Parameters.DataWidth))
+  val mcause_write_data= Output(UInt(Parameters.DataWidth))
+
+  val direct_write_enable = Output(Bool())
 }
 
 // Core Local Interrupt Controller
@@ -49,135 +60,60 @@ class CLINT extends Module {
     // Interrupt signals from peripherals
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
 
-    // Current instruction from instruction decode
-    val instruction = Input(UInt(Parameters.InstructionWidth))
+    val instruction_id = Input(UInt(Parameters.InstructionWidth))
     val instruction_address_if = Input(UInt(Parameters.AddrWidth))
 
     val jump_flag = Input(Bool())
     val jump_address = Input(UInt(Parameters.AddrWidth))
 
-    val csr_mtvec = Input(UInt(Parameters.DataWidth))
-    val csr_mepc = Input(UInt(Parameters.DataWidth))
-    val csr_mstatus = Input(UInt(Parameters.DataWidth))
-
-    // Is global interrupt enabled (from MSTATUS)?
-    val interrupt_enable = Input(Bool())
-
-    val ctrl_stall_flag = Output(Bool())
-
-    val csr_reg_write_enable = Output(Bool())
-    val csr_reg_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
-    val csr_reg_write_data = Output(UInt(Parameters.DataWidth))
-
     val id_interrupt_handler_address = Output(UInt(Parameters.AddrWidth))
     val id_interrupt_assert = Output(Bool())
+
+    val csr_bundle = new CSRDirectAccessBundle
   })
-
-  val interrupt_state = WireInit(0.U)
-  val csr_state = RegInit(CSRState.Idle)
-  val instruction_address = RegInit(UInt(Parameters.AddrWidth), 0.U)
-  val cause = RegInit(UInt(Parameters.DataWidth), 0.U)
-  val interrupt_assert = RegInit(Bool(), false.B)
-  val interrupt_handler_address = RegInit(UInt(Parameters.AddrWidth), 0.U)
-  val csr_reg_write_enable = RegInit(Bool(), false.B)
-  val csr_reg_write_address = RegInit(UInt(Parameters.CSRRegisterAddrWidth), 0.U)
-  val csr_reg_write_data = RegInit(UInt(Parameters.DataWidth), 0.U)
-
-  io.ctrl_stall_flag := interrupt_state =/= InterruptState.Idle || csr_state =/= CSRState.Idle
-
-  // Interrupt FSM
-  when(io.instruction === InstructionsEnv.ecall || io.instruction === InstructionsEnv.ebreak) {
-    interrupt_state := InterruptState.SyncAssert
-  }.elsewhen(io.interrupt_flag =/= InterruptStatus.None && io.interrupt_enable) {
-    interrupt_state := InterruptState.AsyncAssert
-  }.elsewhen(io.instruction === InstructionsRet.mret) {
-    interrupt_state := InterruptState.MRET
-  }.otherwise {
-    interrupt_state := InterruptState.Idle
-  }
-
-  // CSR FSM
-  when(csr_state === CSRState.Idle) {
-    when(interrupt_state === InterruptState.SyncAssert) {
-      // Synchronous Interrupt
-      csr_state := CSRState.MEPC
-      instruction_address := Mux(
-        io.jump_flag,
-        io.jump_address - 4.U,
-        io.instruction_address_if
-      )
-
-      cause := MuxLookup(
-        io.instruction,
-        10.U,
-        IndexedSeq(
-          InstructionsEnv.ecall -> 11.U,
-          InstructionsEnv.ebreak -> 3.U,
-        )
-      )
-    }.elsewhen(interrupt_state === InterruptState.AsyncAssert) {
-      // Asynchronous Interrupt
-      cause := 0x8000000BL.U
-      when(io.interrupt_flag(0)) {
-        cause := 0x80000007L.U
-      }
-      csr_state := CSRState.MEPC
-      instruction_address := Mux(
-        io.jump_flag,
-        io.jump_address,
-        io.instruction_address_if,
-      )
-    }.elsewhen(interrupt_state === InterruptState.MRET) {
-      // Interrupt Return
-      csr_state := CSRState.MRET
-    }
-  }.elsewhen(csr_state === CSRState.MEPC) {
-    csr_state := CSRState.MSTATUS
-  }.elsewhen(csr_state === CSRState.MSTATUS) {
-    csr_state := CSRState.MCAUSE
-  }.elsewhen(csr_state === CSRState.MCAUSE) {
-    csr_state := CSRState.Idle
-  }.elsewhen(csr_state === CSRState.MRET) {
-    csr_state := CSRState.Idle
-  }.otherwise {
-    csr_state := CSRState.Idle
-  }
-
-  csr_reg_write_enable := csr_state =/= CSRState.Idle
-  csr_reg_write_address := Cat(Fill(20, 0.U(1.W)), MuxLookup(
-    csr_state,
-    0.U(Parameters.CSRRegisterAddrWidth),
-    IndexedSeq(
-      CSRState.MEPC -> CSRRegister.MEPC,
-      CSRState.MCAUSE -> CSRRegister.MCAUSE,
-      CSRState.MSTATUS -> CSRRegister.MSTATUS,
-      CSRState.MRET -> CSRRegister.MSTATUS,
-    )
-  ))
-  csr_reg_write_data := MuxLookup(
-    csr_state,
-    0.U(Parameters.DataWidth),
-    IndexedSeq(
-      CSRState.MEPC -> instruction_address,
-      CSRState.MCAUSE -> cause,
-      CSRState.MSTATUS -> Cat(io.csr_mstatus(31, 4), 0.U(1.W), io.csr_mstatus(2, 0)),
-      CSRState.MRET -> Cat(io.csr_mstatus(31, 4), io.csr_mstatus(7), io.csr_mstatus(2, 0)),
-    )
+  val interrupt_enable = io.csr_bundle.mstatus(3)
+  val instruction_address = Mux(
+    io.jump_flag,
+    io.jump_address,
+    io.instruction_address_if,
   )
-  io.csr_reg_write_enable := csr_reg_write_enable
-  io.csr_reg_write_address := csr_reg_write_address
-  io.csr_reg_write_data := csr_reg_write_data
+  val mstatus_disable_interrupt = io.csr_bundle.mstatus(31, 4) ## 0.U(1.W) ## io.csr_bundle.mstatus(2, 0)
+  val mstatus_recover_interrupt = io.csr_bundle.mstatus(31, 4) ## io.csr_bundle.mstatus(7) ## io.csr_bundle.mstatus(2, 0)
 
-  interrupt_assert := csr_state === CSRState.MCAUSE || csr_state === CSRState.MRET
-  interrupt_handler_address := MuxLookup(
-    csr_state,
-    0.U(Parameters.AddrWidth),
-    IndexedSeq(
-      CSRState.MCAUSE -> io.csr_mtvec,
-      CSRState.MRET -> io.csr_mepc,
+  when(io.instruction_id === InstructionsEnv.ecall || io.instruction_id === InstructionsEnv.ebreak) {
+    io.csr_bundle.mstatus_write_data := mstatus_disable_interrupt
+    io.csr_bundle.mepc_write_data := instruction_address
+    io.csr_bundle.mcause_write_data := MuxLookup(
+      io.instruction_id,
+      10.U,
+      IndexedSeq(
+        InstructionsEnv.ecall -> 11.U,
+        InstructionsEnv.ebreak -> 3.U,
+      )
     )
-  )
-
-  io.id_interrupt_assert := interrupt_assert
-  io.id_interrupt_handler_address := interrupt_handler_address
+    io.csr_bundle.direct_write_enable := true.B
+    io.id_interrupt_assert := true.B
+    io.id_interrupt_handler_address := io.csr_bundle.mtvec
+  }.elsewhen(io.interrupt_flag =/= InterruptStatus.None && interrupt_enable) {
+    io.csr_bundle.mstatus_write_data := mstatus_disable_interrupt
+    io.csr_bundle.mepc_write_data := instruction_address
+    io.csr_bundle.mcause_write_data := Mux(io.interrupt_flag(0), 0x80000007L.U, 0x8000000BL.U)
+    io.csr_bundle.direct_write_enable := true.B
+    io.id_interrupt_assert := true.B
+    io.id_interrupt_handler_address := io.csr_bundle.mtvec
+  }.elsewhen(io.instruction_id === InstructionsRet.mret) {
+    io.csr_bundle.mstatus_write_data := mstatus_recover_interrupt
+    io.csr_bundle.mepc_write_data := io.csr_bundle.mepc
+    io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
+    io.csr_bundle.direct_write_enable := true.B
+    io.id_interrupt_assert := true.B
+    io.id_interrupt_handler_address := io.csr_bundle.mepc
+  }.otherwise {
+    io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus
+    io.csr_bundle.mepc_write_data := io.csr_bundle.mepc
+    io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
+    io.csr_bundle.direct_write_enable := false.B
+    io.id_interrupt_assert := false.B
+    io.id_interrupt_handler_address := 0.U
+  }
 }
