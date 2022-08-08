@@ -50,7 +50,6 @@ class Top extends Module {
   val timer = Module(new Timer)
   val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
   val dummy = Module(new Dummy)
-  val deviceSelect = cpu.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
   display.io.bundle <> dummy.io.bundle
   mem.io.bundle <> dummy.io.bundle
   timer.io.bundle <> dummy.io.bundle
@@ -60,11 +59,11 @@ class Top extends Module {
   cpu.io.interrupt_flag := uart.io.signal_interrupt ## timer.io.signal_interrupt
   mem.io.debug_read_address := 0.U
   cpu.io.debug_read_address := 0.U
-  when(deviceSelect === 4.U) {
+  when(cpu.io.device_select === 4.U) {
     timer.io.bundle <> cpu.io.memory_bundle
-  }.elsewhen(deviceSelect === 2.U) {
+  }.elsewhen(cpu.io.device_select === 2.U) {
     uart.io.bundle <> cpu.io.memory_bundle
-  }.elsewhen(deviceSelect === 1.U) {
+  }.elsewhen(cpu.io.device_select === 1.U) {
     display.io.bundle <> cpu.io.memory_bundle
   }.otherwise {
     mem.io.bundle <> cpu.io.memory_bundle

@@ -133,7 +133,9 @@ class CPU extends Module {
   mem.io.funct3 := ex2mem.io.output_instruction(14, 12)
   mem.io.regs_write_source := ex2mem.io.output_regs_write_source
   mem.io.csr_read_data := ex2mem.io.output_csr_read_data
-  mem.io.bundle <> io.memory_bundle
+  io.device_select := mem.io.bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
+  io.memory_bundle <> mem.io.bundle
+  io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## mem.io.bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
 
   mem2wb.io.instruction_address := ex2mem.io.output_instruction_address
   mem2wb.io.alu_result := ex2mem.io.output_alu_result
