@@ -49,8 +49,8 @@ class Execute extends Module {
     val regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
 
-    val ctrl_jump_flag = Output(Bool())
-    val ctrl_jump_address = Output(UInt(Parameters.AddrWidth))
+    val if_jump_flag = Output(Bool())
+    val if_jump_address = Output(UInt(Parameters.AddrWidth))
 
     val csr_reg_write_enable = Output(Bool())
     val csr_reg_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
@@ -60,7 +60,6 @@ class Execute extends Module {
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
   val funct7 = io.instruction(31, 25)
-  val rd = io.instruction(11, 7)
   val uimm = io.instruction(19, 15)
 
   val alu = Module(new ALU)
@@ -76,20 +75,17 @@ class Execute extends Module {
 
   val mem_read_address_index = (io.op1 + io.op2) (log2Up(Parameters.WordSize) - 1, 0).asUInt
   val mem_write_address_index = (io.op1 + io.op2) (log2Up(Parameters.WordSize) - 1, 0).asUInt
-  val pending_interrupt = RegInit(false.B)
-  val pending_interrupt_handler_address = RegInit(Parameters.EntryAddress)
 
   val jump_flag = Wire(Bool())
   val jump_address = Wire(UInt(Parameters.AddrWidth))
 
-  io.ctrl_jump_flag := jump_flag || io.interrupt_assert
-  io.ctrl_jump_address := Mux(io.interrupt_assert, io.interrupt_handler_address, jump_address)
-
+  io.if_jump_flag := jump_flag || io.interrupt_assert
+  io.if_jump_address := Mux(io.interrupt_assert, io.interrupt_handler_address, jump_address)
 
   io.regs_write_enable := io.regs_write_enable_id && !io.interrupt_assert
   io.regs_write_address := io.regs_write_address_id
   io.regs_write_data := 0.U
-  io.csr_reg_write_enable := io.csr_reg_write_enable_id && !io.interrupt_assert
+  io.csr_reg_write_enable := io.csr_reg_write_enable_id
   io.csr_reg_write_address := io.csr_reg_write_address_id
   io.csr_reg_write_data := 0.U
 
@@ -200,7 +196,7 @@ class Execute extends Module {
         InstructionsTypeB.bge -> (io.op1.asSInt() >= io.op2.asSInt())
       )
     )
-    jump_address := Fill(32, io.ctrl_jump_flag) & (io.op1_jump + io.op2_jump)
+    jump_address := Fill(32, io.if_jump_flag) & (io.op1_jump + io.op2_jump)
   }.elsewhen(opcode === Instructions.jal || opcode === Instructions.jalr) {
     jump_flag := true.B
     jump_address := io.op1_jump + io.op2_jump

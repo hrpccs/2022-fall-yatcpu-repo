@@ -45,10 +45,10 @@ vivado-sim-pynq: pynq
 	cd vivado/pynq && vivado -mode batch -source run_simulation.tcl
 
 arch-test: verilator
-	cp -r ../lab2 ~ && \
+	cp -r ../lab3 ~ && \
 	cd ~/riscv-arch-test && \
-	export TARGET_SIM=~/lab2/verilog/verilator/obj_dir/VTop && \
-	export TARGETDIR=~/lab2/riscv-target && \
+	export TARGET_SIM=~/lab3/verilog/verilator/obj_dir/VTop && \
+	export TARGETDIR=~/lab3/riscv-target && \
 	export RISCV_TARGET=yatcpu && \
     make
 

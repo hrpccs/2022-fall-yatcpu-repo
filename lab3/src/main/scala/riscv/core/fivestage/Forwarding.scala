@@ -15,6 +15,7 @@
 package riscv.core.fivestage
 
 import chisel3._
+import chisel3.util.MuxCase
 import riscv.Parameters
 
 object ForwardingType {

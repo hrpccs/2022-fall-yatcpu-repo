@@ -89,7 +89,7 @@ class CSR extends Module {
   when(io.reg_write_enable_ex) {
     when(io.reg_write_address_ex === CSRRegister.MIE) {
       mie := io.reg_write_data_ex
-    }.elsewhen(io.reg_write_address_ex === CSRRegister.MTVEC){
+    }.elsewhen(io.reg_write_address_ex === CSRRegister.MTVEC) {
       mtvec := io.reg_write_data_ex
     }.elsewhen(io.reg_write_address_ex === CSRRegister.MSCRATCH) {
       mscratch := io.reg_write_data_ex

@@ -15,7 +15,7 @@
 package riscv.core.fivestage
 
 import chisel3._
-import chisel3.util.{MuxLookup, _}
+import chisel3.util.MuxLookup
 import riscv.Parameters
 
 object InterruptStatus {
@@ -24,32 +24,15 @@ object InterruptStatus {
   val Ret = 0xFF.U(8.W)
 }
 
-object InterruptEntry {
-  val Timer0 = 0x4.U(8.W)
-}
-
-object InterruptState {
-  val Idle = 0x0.U
-  val SyncAssert = 0x1.U
-  val AsyncAssert = 0x2.U
-  val MRET = 0x3.U
-}
-
-object CSRState {
-  val Idle = 0x0.U
-  val Traping = 0x1.U
-  val Mret = 0x2.U
-}
-
 class CSRDirectAccessBundle extends Bundle {
   val mstatus = Input(UInt(Parameters.DataWidth))
   val mepc = Input(UInt(Parameters.DataWidth))
   val mcause = Input(UInt(Parameters.DataWidth))
   val mtvec = Input(UInt(Parameters.DataWidth))
 
-  val mstatus_write_data= Output(UInt(Parameters.DataWidth))
-  val mepc_write_data= Output(UInt(Parameters.DataWidth))
-  val mcause_write_data= Output(UInt(Parameters.DataWidth))
+  val mstatus_write_data = Output(UInt(Parameters.DataWidth))
+  val mepc_write_data = Output(UInt(Parameters.DataWidth))
+  val mcause_write_data = Output(UInt(Parameters.DataWidth))
 
   val direct_write_enable = Output(Bool())
 }

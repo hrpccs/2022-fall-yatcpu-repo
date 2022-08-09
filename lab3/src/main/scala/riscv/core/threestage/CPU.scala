@@ -15,6 +15,7 @@
 package riscv.core.threestage
 
 import chisel3._
+import riscv.Parameters
 import riscv.core.CPUBundle
 
 class CPU extends Module {
@@ -39,20 +40,20 @@ class CPU extends Module {
   io.debug_read_data := regs.io.debug_read_data
 
   io.instruction_address := inst_fetch.io.rom_instruction_address
-  inst_fetch.io.jump_flag_ctrl := ex.io.ctrl_jump_flag
-  inst_fetch.io.jump_address_ctrl := ex.io.ctrl_jump_address
+  inst_fetch.io.jump_flag_ctrl := ex.io.if_jump_flag
+  inst_fetch.io.jump_address_ctrl := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
 
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.id_instruction_address
-  if2id.io.jump_flag := ex.io.ctrl_jump_flag
+  if2id.io.jump_flag := ex.io.if_jump_flag
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.reg1_data := regs.io.read_data1
   id.io.reg2_data := regs.io.read_data2
   id.io.instruction := if2id.io.output_instruction
   id.io.instruction_address := if2id.io.output_instruction_address
-  id.io.csr_read_data := csr_regs.io.id_reg_data
+  id.io.csr_read_data := csr_regs.io.id_reg_read_data
 
   id2ex.io.instruction := id.io.ex_instruction
   id2ex.io.instruction_address := id.io.ex_instruction_address
@@ -67,7 +68,7 @@ class CPU extends Module {
   id2ex.io.reg2_data := id.io.ex_reg2_data
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable
   id2ex.io.regs_write_address := id.io.ex_reg_write_address
-  id2ex.io.jump_flag := ex.io.ctrl_jump_flag
+  id2ex.io.jump_flag := ex.io.if_jump_flag
 
   ex.io.instruction := id2ex.io.output_instruction
   ex.io.instruction_address := id2ex.io.output_instruction_address
@@ -84,24 +85,19 @@ class CPU extends Module {
   ex.io.regs_write_address_id := id2ex.io.output_regs_write_address
   ex.io.interrupt_assert := clint.io.ex_interrupt_assert
   ex.io.interrupt_handler_address := clint.io.ex_interrupt_handler_address
-  ex.io.memory_bundle <> io.memory_bundle
+  io.device_select := ex.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
+  io.memory_bundle <> ex.io.memory_bundle
+  io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
 
-  clint.io.instruction := id.io.ex_instruction
+  clint.io.instruction_ex := id.io.ex_instruction
   clint.io.instruction_address_id := id.io.instruction_address
-  clint.io.jump_flag := ex.io.ctrl_jump_flag
-  clint.io.jump_address := ex.io.ctrl_jump_address
-  clint.io.csr_mepc := csr_regs.io.clint_csr_mepc
-  clint.io.csr_mtvec := csr_regs.io.clint_csr_mtvec
-  clint.io.csr_mstatus := csr_regs.io.clint_csr_mstatus
-  clint.io.interrupt_enable := csr_regs.io.interrupt_enable
+  clint.io.jump_flag := ex.io.if_jump_flag
+  clint.io.jump_address := ex.io.if_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag
+  clint.io.csr_bundle <> csr_regs.io.clint_access_bundle
 
   csr_regs.io.reg_write_enable_ex := ex.io.csr_reg_write_enable
   csr_regs.io.reg_write_address_ex := ex.io.csr_reg_write_address
   csr_regs.io.reg_write_data_ex := ex.io.csr_reg_write_data
   csr_regs.io.reg_read_address_id := id.io.csr_read_address
-  csr_regs.io.reg_write_enable_clint := clint.io.csr_reg_write_enable
-  csr_regs.io.reg_write_address_clint := clint.io.csr_reg_write_address
-  csr_regs.io.reg_write_data_clint := clint.io.csr_reg_write_data
-  csr_regs.io.reg_read_address_clint := 0.U
 }
