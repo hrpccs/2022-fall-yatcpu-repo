@@ -63,5 +63,4 @@ class ALU extends Module {
       io.result := io.op1 < io.op2
     }
   }
-
 }

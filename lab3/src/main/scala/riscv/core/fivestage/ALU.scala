@@ -33,20 +33,37 @@ class ALU extends Module {
     val result = Output(UInt(Parameters.DataWidth))
   })
 
-  io.result := MuxLookup(
-    io.func,
-    0.U,
-    IndexedSeq(
-      ALUFunctions.add -> (io.op1 + io.op2),
-      ALUFunctions.sub -> (io.op1 - io.op2),
-      ALUFunctions.sll -> (io.op1 << io.op2(4, 0)),
-      ALUFunctions.slt -> (io.op1.asSInt < io.op2.asSInt),
-      ALUFunctions.xor -> (io.op1 ^ io.op2),
-      ALUFunctions.or -> (io.op1 | io.op2),
-      ALUFunctions.and -> (io.op1 & io.op2),
-      ALUFunctions.srl -> (io.op1 >> io.op2(4, 0)),
-      ALUFunctions.sra -> (io.op1.asSInt >> io.op2(4, 0)).asUInt,
-      ALUFunctions.sltu -> (io.op1 < io.op2),
-    )
-  )
+  io.result := 0.U
+  switch(io.func) {
+    is(ALUFunctions.add) {
+      io.result := io.op1 + io.op2
+    }
+    is(ALUFunctions.sub) {
+      io.result := io.op1 - io.op2
+    }
+    is(ALUFunctions.sll) {
+      io.result := io.op1 << io.op2(4, 0)
+    }
+    is(ALUFunctions.slt) {
+      io.result := io.op1.asSInt < io.op2.asSInt
+    }
+    is(ALUFunctions.xor) {
+      io.result := io.op1 ^ io.op2
+    }
+    is(ALUFunctions.or) {
+      io.result := io.op1 | io.op2
+    }
+    is(ALUFunctions.and) {
+      io.result := io.op1 & io.op2
+    }
+    is(ALUFunctions.srl) {
+      io.result := io.op1 >> io.op2(4, 0)
+    }
+    is(ALUFunctions.sra) {
+      io.result := (io.op1.asSInt >> io.op2(4, 0)).asUInt
+    }
+    is(ALUFunctions.sltu) {
+      io.result := io.op1 < io.op2
+    }
+  }
 }
