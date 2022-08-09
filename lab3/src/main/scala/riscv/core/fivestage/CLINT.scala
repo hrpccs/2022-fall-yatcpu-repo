@@ -40,7 +40,6 @@ class CSRDirectAccessBundle extends Bundle {
 // Core Local Interrupt Controller
 class CLINT extends Module {
   val io = IO(new Bundle {
-    // Interrupt signals from peripherals
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
 
     val instruction_id = Input(UInt(Parameters.InstructionWidth))

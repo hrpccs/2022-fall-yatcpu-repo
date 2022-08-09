@@ -19,11 +19,6 @@ import chisel3.experimental.ChiselEnum
 import chisel3.util._
 import peripheral.RAMBundle
 import riscv.Parameters
-import riscv.core.BusBundle
-
-object MemoryAccessStates extends ChiselEnum {
-  val Idle, Read, Write, ReadWrite = Value
-}
 
 class Execute extends Module {
   val io = IO(new Bundle {
