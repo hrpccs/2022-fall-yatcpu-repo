@@ -19,33 +19,37 @@ import riscv.Parameters
 
 class ID2EX extends Module {
   val io = IO(new Bundle {
+    val jump_flag = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
     val regs_write_enable = Input(Bool())
     val regs_write_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val regs_write_source = Input(UInt(2.W))
     val reg1_data = Input(UInt(Parameters.DataWidth))
     val reg2_data = Input(UInt(Parameters.DataWidth))
-    val op1 = Input(UInt(Parameters.DataWidth))
-    val op2 = Input(UInt(Parameters.DataWidth))
-    val op1_jump = Input(UInt(Parameters.DataWidth))
-    val op2_jump = Input(UInt(Parameters.DataWidth))
+    val immediate = Input(UInt(Parameters.DataWidth))
+    val aluop1_source = Input(UInt(1.W))
+    val aluop2_source = Input(UInt(1.W))
     val csr_write_enable = Input(Bool())
-    val csr_write_address = Input(UInt(Parameters.CSRRegisterAddrWidth))
+    val csr_address = Input(UInt(Parameters.CSRRegisterAddrWidth))
     val csr_read_data = Input(UInt(Parameters.DataWidth))
-    val jump_flag = Input(Bool())
+    val memory_read_enable = Input(Bool())
+    val memory_write_enable = Input(Bool())
 
     val output_instruction = Output(UInt(Parameters.DataWidth))
     val output_instruction_address = Output(UInt(Parameters.AddrWidth))
     val output_regs_write_enable = Output(Bool())
     val output_regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val output_regs_write_source = Output(UInt(2.W))
     val output_reg1_data = Output(UInt(Parameters.DataWidth))
     val output_reg2_data = Output(UInt(Parameters.DataWidth))
-    val output_op1 = Output(UInt(Parameters.DataWidth))
-    val output_op2 = Output(UInt(Parameters.DataWidth))
-    val output_op1_jump = Output(UInt(Parameters.DataWidth))
-    val output_op2_jump = Output(UInt(Parameters.DataWidth))
+    val output_immediate = Output(UInt(Parameters.DataWidth))
+    val output_aluop1_source = Output(UInt(1.W))
+    val output_aluop2_source = Output(UInt(1.W))
     val output_csr_write_enable = Output(Bool())
-    val output_csr_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
+    val output_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
+    val output_memory_read_enable = Output(Bool())
+    val output_memory_write_enable = Output(Bool())
     val output_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
   val write_enable = !io.jump_flag
@@ -75,6 +79,12 @@ class ID2EX extends Module {
   regs_write_address.io.flush_enable := flush_enable
   io.output_regs_write_address := regs_write_address.io.out
 
+  val regs_write_source = Module(new PipelineRegister(2))
+  regs_write_source.io.in := io.regs_write_source
+  regs_write_source.io.write_enable := write_enable
+  regs_write_source.io.flush_enable := flush_enable
+  io.output_regs_write_source := regs_write_source.io.out
+
   val reg1_data = Module(new PipelineRegister())
   reg1_data.io.in := io.reg1_data
   reg1_data.io.write_enable := write_enable
@@ -87,41 +97,47 @@ class ID2EX extends Module {
   reg2_data.io.flush_enable := flush_enable
   io.output_reg2_data := reg2_data.io.out
 
-  val op1 = Module(new PipelineRegister())
-  op1.io.in := io.op1
-  op1.io.write_enable := write_enable
-  op1.io.flush_enable := flush_enable
-  io.output_op1 := op1.io.out
+  val immediate = Module(new PipelineRegister())
+  immediate.io.in := io.immediate
+  immediate.io.write_enable := write_enable
+  immediate.io.flush_enable := flush_enable
+  io.output_immediate := immediate.io.out
 
-  val op2 = Module(new PipelineRegister())
-  op2.io.in := io.op2
-  op2.io.write_enable := write_enable
-  op2.io.flush_enable := flush_enable
-  io.output_op2 := op2.io.out
+  val aluop1_source = Module(new PipelineRegister(1))
+  aluop1_source.io.in := io.aluop1_source
+  aluop1_source.io.write_enable := write_enable
+  aluop1_source.io.flush_enable := flush_enable
+  io.output_aluop1_source := aluop1_source.io.out
 
-  val op1_jump = Module(new PipelineRegister())
-  op1_jump.io.in := io.op1_jump
-  op1_jump.io.write_enable := write_enable
-  op1_jump.io.flush_enable := flush_enable
-  io.output_op1_jump := op1_jump.io.out
+  val aluop2_source = Module(new PipelineRegister(1))
+  aluop2_source.io.in := io.aluop2_source
+  aluop2_source.io.write_enable := write_enable
+  aluop2_source.io.flush_enable := flush_enable
+  io.output_aluop2_source := aluop2_source.io.out
 
-  val op2_jump = Module(new PipelineRegister())
-  op2_jump.io.in := io.op2_jump
-  op2_jump.io.write_enable := write_enable
-  op2_jump.io.flush_enable := flush_enable
-  io.output_op2_jump := op2_jump.io.out
-
-  val csr_write_enable = Module(new PipelineRegister())
+  val csr_write_enable = Module(new PipelineRegister(1))
   csr_write_enable.io.in := io.csr_write_enable
   csr_write_enable.io.write_enable := write_enable
   csr_write_enable.io.flush_enable := flush_enable
   io.output_csr_write_enable := csr_write_enable.io.out
 
-  val csr_write_address = Module(new PipelineRegister())
-  csr_write_address.io.in := io.csr_write_address
-  csr_write_address.io.write_enable := write_enable
-  csr_write_address.io.flush_enable := flush_enable
-  io.output_csr_write_address := csr_write_address.io.out
+  val csr_address = Module(new PipelineRegister(Parameters.CSRRegisterAddrBits))
+  csr_address.io.in := io.csr_address
+  csr_address.io.write_enable := write_enable
+  csr_address.io.flush_enable := flush_enable
+  io.output_csr_address := csr_address.io.out
+
+  val memory_read_enable = Module(new PipelineRegister(1))
+  memory_read_enable.io.in := io.memory_read_enable
+  memory_read_enable.io.write_enable := write_enable
+  memory_read_enable.io.flush_enable := flush_enable
+  io.output_memory_read_enable := memory_read_enable.io.out
+
+  val memory_write_enable = Module(new PipelineRegister(1))
+  memory_write_enable.io.in := io.memory_write_enable
+  memory_write_enable.io.write_enable := write_enable
+  memory_write_enable.io.flush_enable := flush_enable
+  io.output_memory_write_enable := memory_write_enable.io.out
 
   val csr_read_data = Module(new PipelineRegister())
   csr_read_data.io.in := io.csr_read_data
