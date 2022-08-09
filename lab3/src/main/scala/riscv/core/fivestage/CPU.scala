@@ -56,16 +56,17 @@ class CPU extends Module {
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
-  io.instruction_address := inst_fetch.io.rom_instruction_address
+  io.instruction_address := inst_fetch.io.instruction_address
   inst_fetch.io.stall_flag_ctrl := ctrl.io.pc_stall
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag
   inst_fetch.io.jump_address_id := id.io.if_jump_address
-  inst_fetch.io.rom_instruction := io.instruction
+  inst_fetch.io.instruction_valid := io.instruction_valid
+  inst_fetch.io.instruction := io.instruction
 
   if2id.io.stall_flag := ctrl.io.if_stall
   if2id.io.flush_enable := ctrl.io.if_flush
   if2id.io.instruction := inst_fetch.io.id_instruction
-  if2id.io.instruction_address := inst_fetch.io.id_instruction_address
+  if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
@@ -161,7 +162,7 @@ class CPU extends Module {
   forwarding.io.reg_write_enable_wb := mem2wb.io.output_regs_write_enable
 
   clint.io.instruction_id := if2id.io.output_instruction
-  clint.io.instruction_address_if := inst_fetch.io.id_instruction_address
+  clint.io.instruction_address_if := inst_fetch.io.instruction_address
   clint.io.jump_flag := id.io.if_jump_flag
   clint.io.jump_address := ex2mem.io.output_alu_result
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag

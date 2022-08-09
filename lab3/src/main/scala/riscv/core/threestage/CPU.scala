@@ -39,15 +39,16 @@ class CPU extends Module {
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
-  io.instruction_address := inst_fetch.io.rom_instruction_address
+  io.instruction_address := inst_fetch.io.instruction_address
   inst_fetch.io.jump_flag_ctrl := ex.io.if_jump_flag
   inst_fetch.io.jump_address_ctrl := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
 
   if2id.io.instruction := inst_fetch.io.id_instruction
-  if2id.io.instruction_address := inst_fetch.io.id_instruction_address
+  if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.jump_flag := ex.io.if_jump_flag
   if2id.io.interrupt_flag := io.interrupt_flag
+  inst_fetch.io.instruction_valid := io.instruction_valid
 
   id.io.reg1_data := regs.io.read_data1
   id.io.reg2_data := regs.io.read_data2

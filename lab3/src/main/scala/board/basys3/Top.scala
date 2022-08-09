@@ -30,22 +30,51 @@ class Top extends Module {
     val segs = Output(UInt(8.W))
     val digit_mask = Output(UInt(4.W))
 
+    val hsync = Output(Bool())
+    val vsync = Output(Bool())
+    val rgb = Output(UInt(12.W))
     val led = Output(UInt(16.W))
+
   })
 
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
-
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
-  cpu.io.instruction := instruction_rom.io.data
-
+  val cpu = Module(new CPU)
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  mem.io.bundle <> cpu.io.memory_bundle
 
-  cpu.io.interrupt_flag := 0.U
+  val vga_display = Module(new VGADisplay)
+  val display = Module(new CharacterDisplay)
+  val inst_mem = Module(new InstructionROM(binaryFilename))
+
+  display.io.bundle.address := 0.U
+  display.io.bundle.write_enable := false.B
+  display.io.bundle.write_data := 0.U
+  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.bundle.address := 0.U
+  mem.io.bundle.write_enable := false.B
+  mem.io.bundle.write_data := 0.U
+  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.debug_read_address := 0.U
 
   cpu.io.debug_read_address := 0.U
-  mem.io.debug_read_address := 0.U
+
+  mem.io.bundle <> cpu.io.memory_bundle
+
+  when(cpu.io.device_select === 1.U) {
+    display.io.bundle <> cpu.io.memory_bundle
+  }.otherwise {
+    mem.io.bundle <> cpu.io.memory_bundle
+  }
+
+  inst_mem.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
+  cpu.io.instruction := inst_mem.io.data
+
+  io.hsync := vga_display.io.hsync
+  io.vsync := vga_display.io.vsync
+
+  display.io.x := vga_display.io.x
+  display.io.y := vga_display.io.y
+  display.io.video_on := vga_display.io.video_on
+
+  io.rgb := display.io.rgb
 
   mem.io.debug_read_address := io.switch(15, 1).asUInt << 2
   io.led := Mux(
