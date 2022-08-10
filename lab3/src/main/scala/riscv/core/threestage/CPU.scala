@@ -39,8 +39,8 @@ class CPU extends Module {
   io.debug_read_data := regs.io.debug_read_data
 
   io.instruction_address := inst_fetch.io.rom_instruction_address
-  inst_fetch.io.jump_flag_ctrl := ex.io.if_jump_flag
-  inst_fetch.io.jump_address_ctrl := ex.io.if_jump_address
+  inst_fetch.io.jump_flag_ex := ex.io.if_jump_flag
+  inst_fetch.io.jump_address_ex := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
 
   if2id.io.jump_flag := ex.io.if_jump_flag
@@ -84,15 +84,15 @@ class CPU extends Module {
   io.memory_bundle <> ex.io.memory_bundle
   io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
 
-  clint.io.instruction_ex := id2ex.io.output_instruction
-  clint.io.instruction_address_id := if2id.io.output_instruction_address
-  clint.io.jump_flag := ex.io.if_jump_flag
-  clint.io.jump_address := ex.io.if_jump_address
+  clint.io.instruction_ex := if2id.io.output_instruction
+  clint.io.instruction_address_id := inst_fetch.io.id_instruction_address
+  clint.io.jump_flag := ex.io.clint_jump_flag
+  clint.io.jump_address := ex.io.clint_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag
   clint.io.csr_bundle <> csr_regs.io.clint_access_bundle
 
   csr_regs.io.reg_write_enable_ex := id2ex.io.output_csr_write_enable
   csr_regs.io.reg_write_address_ex := id2ex.io.output_csr_address
   csr_regs.io.reg_write_data_ex := ex.io.csr_write_data
-  csr_regs.io.reg_read_address_id := id2ex.io.output_csr_address
+  csr_regs.io.reg_read_address_id := id.io.ex_csr_address
 }

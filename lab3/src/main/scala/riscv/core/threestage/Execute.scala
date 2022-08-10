@@ -41,6 +41,8 @@ class Execute extends Module {
     val regs_write_data = Output(UInt(Parameters.DataWidth))
     val if_jump_flag = Output(Bool())
     val if_jump_address = Output(UInt(Parameters.AddrWidth))
+    val clint_jump_flag = Output(Bool())
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
   })
 
   val opcode = io.instruction(6, 0)
@@ -74,7 +76,7 @@ class Execute extends Module {
   val memory_read_data = Wire(UInt(Parameters.DataWidth))
 
   memory_read_data := 0.U
-  io.memory_bundle.write_enable := false.B
+  io.memory_bundle.write_enable := io.memory_write_enable_id
   io.memory_bundle.write_data := 0.U
   io.memory_bundle.address := alu.io.result
   io.memory_bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
@@ -118,7 +120,6 @@ class Execute extends Module {
     )
   }.elsewhen(io.memory_write_enable_id) {
     io.memory_bundle.write_data := io.reg2_data
-    io.memory_bundle.write_enable := true.B
     io.memory_bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
     when(funct3 === InstructionsTypeS.sb) {
       io.memory_bundle.write_strobe(mem_address_index) := true.B
@@ -163,8 +164,8 @@ class Execute extends Module {
     InstructionsTypeCSR.csrrsi -> io.csr_read_data_id.|(Cat(0.U(27.W), uimm)),
   ))
 
-  io.if_jump_flag := io.interrupt_assert_clint ||
-    (opcode === Instructions.jal) ||
+  // jump and interrupt
+  val instruction_jump_flag = (opcode === Instructions.jal) ||
     (opcode === Instructions.jalr) ||
     (opcode === InstructionTypes.B) && MuxLookup(
       funct3,
@@ -178,6 +179,9 @@ class Execute extends Module {
         InstructionsTypeB.bgeu -> (io.reg1_data.asUInt >= io.reg2_data.asUInt)
       )
     )
+  io.clint_jump_flag := instruction_jump_flag
+  io.clint_jump_address := alu.io.result
+  io.if_jump_flag := io.interrupt_assert_clint || instruction_jump_flag
   io.if_jump_address := Mux(io.interrupt_assert_clint,
     io.interrupt_handler_address_clint,
     alu.io.result

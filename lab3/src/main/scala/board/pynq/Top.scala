@@ -36,7 +36,7 @@ class Top extends Module {
   })
   io.led := 15.U(4.W)
 
-  val cpu = Module(new CPU(ImplementationType.FiveStage))
+  val cpu = Module(new CPU(ImplementationType.ThreeStage))
   cpu.io.interrupt_flag := 0.U
   cpu.io.debug_read_address := 0.U
 
