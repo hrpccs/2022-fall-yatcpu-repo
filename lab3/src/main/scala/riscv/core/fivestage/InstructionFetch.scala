@@ -27,10 +27,10 @@ class InstructionFetch extends Module {
     val stall_flag_ctrl = Input(Bool())
     val jump_flag_id = Input(Bool())
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
-    val instruction_valid = Input(Bool())
-    val instruction = Input(UInt(Parameters.DataWidth))
+    val rom_instruction = Input(UInt(Parameters.DataWidth))
 
-    val instruction_address = Output(UInt(Parameters.AddrWidth))
+    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
+    val id_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
     val ctrl_stall_flag = Output(Bool())
   })
@@ -40,11 +40,12 @@ class InstructionFetch extends Module {
     pc + 4.U,
     IndexedSeq(
       (io.jump_flag_id && !io.stall_flag_ctrl) -> io.jump_address_id,
-      (io.stall_flag_ctrl || !io.instruction_valid) -> pc
+      io.stall_flag_ctrl -> pc
     )
   )
 
-  io.instruction_address := pc
-  io.id_instruction := Mux(io.instruction_valid, io.instruction, InstructionsNop.nop)
+  io.rom_instruction_address := pc
+  io.id_instruction_address := pc
+  io.id_instruction := io.rom_instruction
   io.ctrl_stall_flag := false.B
 }

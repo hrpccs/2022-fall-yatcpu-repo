@@ -16,7 +16,7 @@ package riscv.core.fivestage
 
 import chisel3._
 import chisel3.util._
-import peripheral.RAMBundle
+import peripheral.RamAccessBundle
 import riscv.Parameters
 
 class MemoryAccess extends Module {
@@ -33,7 +33,7 @@ class MemoryAccess extends Module {
     val ctrl_stall_flag = Output(Bool())
     val forward_data = Output(UInt(Parameters.DataWidth))
 
-    val bundle = Flipped(new RAMBundle)
+    val bundle = new RamAccessBundle
   })
   val mem_address_index = io.alu_result(log2Up(Parameters.WordSize) - 1, 0).asUInt
 

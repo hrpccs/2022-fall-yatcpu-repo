@@ -15,7 +15,7 @@
 package riscv.core.threestage
 
 import chisel3._
-import chisel3.util._
+import chisel3.util.MuxLookup
 import riscv.Parameters
 
 object InterruptStatus {

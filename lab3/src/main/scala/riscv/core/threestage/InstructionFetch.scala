@@ -23,21 +23,19 @@ object ProgramCounter {
 
 class InstructionFetch extends Module {
   val io = IO(new Bundle {
-    val jump_flag_ctrl = Input(Bool())
-    val jump_address_ctrl = Input(UInt(Parameters.AddrWidth))
+    val jump_flag_ex = Input(Bool())
+    val jump_address_ex = Input(UInt(Parameters.AddrWidth))
     val rom_instruction = Input(UInt(Parameters.DataWidth))
 
-    val instruction_valid = Input(Bool())
-    val instruction_address = Output(UInt(Parameters.AddrWidth))
+    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
+    val id_instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
-  when(io.instruction_valid) {
-    pc := Mux(io.jump_flag_ctrl, io.jump_address_ctrl, pc + 4.U)
-    io.id_instruction := io.rom_instruction
-  }.otherwise {
-    io.id_instruction := InstructionsNop.nop
-  }
 
-  io.instruction_address := pc
+  pc := Mux(io.jump_flag_ex, io.jump_address_ex, pc + 4.U)
+
+  io.rom_instruction_address := pc
+  io.id_instruction_address := pc
+  io.id_instruction := io.rom_instruction
 }

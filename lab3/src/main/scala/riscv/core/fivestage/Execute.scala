@@ -42,7 +42,6 @@ class Execute extends Module {
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
   val funct7 = io.instruction(31, 25)
-  val rd = io.instruction(11, 7)
   val uimm = io.instruction(19, 15)
 
   val alu = Module(new ALU)
