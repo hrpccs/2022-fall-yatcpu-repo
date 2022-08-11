@@ -135,23 +135,17 @@ object RegWriteSource {
 class InstructionDecode extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
-    val instruction_address = Input(UInt(Parameters.AddrWidth))
-    val reg1_data = Input(UInt(Parameters.DataWidth))
-    val reg2_data = Input(UInt(Parameters.DataWidth))
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val ex_immediate = Output(UInt(Parameters.DataWidth))
     val ex_aluop1_source = Output(UInt(1.W))
     val ex_aluop2_source = Output(UInt(1.W))
-    val ex_memory_read_enable = Output(Bool())
-    val ex_memory_write_enable = Output(Bool())
-    val ex_reg_write_source = Output(UInt(2.W))
-    val ex_reg_write_enable = Output(Bool())
-    val ex_reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-
-    val if_jump_flag = Output(Bool())
-    val if_jump_address = Output(UInt(Parameters.AddrWidth))
+    val memory_read_enable = Output(Bool())
+    val memory_write_enable = Output(Bool())
+    val wb_reg_write_source = Output(UInt(2.W))
+    val reg_write_enable = Output(Bool())
+    val reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
   })
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
@@ -187,9 +181,9 @@ class InstructionDecode extends Module {
     ALUOp2Source.Register,
     ALUOp2Source.Immediate
   )
-  io.ex_memory_read_enable := opcode === InstructionTypes.L
-  io.ex_memory_write_enable := opcode === InstructionTypes.S
-  io.ex_reg_write_source := MuxLookup(
+  io.memory_read_enable := opcode === InstructionTypes.L
+  io.memory_write_enable := opcode === InstructionTypes.S
+  io.wb_reg_write_source := MuxLookup(
     opcode,
     RegWriteSource.ALUResult,
     IndexedSeq(
@@ -198,23 +192,8 @@ class InstructionDecode extends Module {
       Instructions.jalr -> RegWriteSource.NextInstructionAddress
     )
   )
-  io.ex_reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
+  io.reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
     (opcode === Instructions.jal) || (opcode === Instructions.jalr)
-  io.ex_reg_write_address := io.instruction(11, 7)
-  io.if_jump_flag := opcode === Instructions.jal ||
-    (opcode === Instructions.jalr) ||
-    (opcode === InstructionTypes.B) && MuxLookup(
-      funct3,
-      false.B,
-      IndexedSeq(
-        InstructionsTypeB.beq -> (io.reg1_data === io.reg2_data),
-        InstructionsTypeB.bne -> (io.reg1_data =/= io.reg2_data),
-        InstructionsTypeB.blt -> (io.reg1_data.asSInt < io.reg2_data.asSInt),
-        InstructionsTypeB.bge -> (io.reg1_data.asSInt >= io.reg2_data.asSInt),
-        InstructionsTypeB.bltu -> (io.reg1_data.asUInt < io.reg2_data.asUInt),
-        InstructionsTypeB.bgeu -> (io.reg1_data.asUInt >= io.reg2_data.asUInt)
-      )
-    )
-  io.if_jump_address := io.ex_immediate + Mux(opcode === Instructions.jalr, io.reg1_data, io.instruction_address)
+  io.reg_write_address := io.instruction(11, 7)
 }
