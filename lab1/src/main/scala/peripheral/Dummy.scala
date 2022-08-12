@@ -1,4 +1,4 @@
-// Copyright 2022 Howard Lau
+// Copyright 2021 Howard Lau
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv
+package peripheral
 
 import chisel3._
-import peripheral.RAMBundle
+import riscv.Parameters
 
-class CPUBundle extends Bundle {
-  val instruction_address = Output(UInt(Parameters.AddrWidth))
-  val instruction = Input(UInt(Parameters.DataWidth))
-  val memory_bundle = Flipped(new RAMBundle)
-  val instruction_valid = Input(Bool())
-  val deviceSelect = Output(UInt(Parameters.SlaveDeviceCountBits.W))
-  val debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-  val debug_read_data = Output(UInt(Parameters.DataWidth))
+// A dummy master that never initiates reads or writes
+class Dummy extends Module {
+  val io = IO(new Bundle {
+    val bundle = Flipped(new RAMBundle)
+  })
+  io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  io.bundle.write_data := 0.U
+  io.bundle.write_enable := false.B
+  io.bundle.address := 0.U
 }

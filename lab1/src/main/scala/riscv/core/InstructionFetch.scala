@@ -15,7 +15,6 @@
 package riscv.core
 
 import chisel3._
-import peripheral.{RamAccessBundle}
 import riscv.Parameters
 
 object ProgramCounter {
@@ -26,22 +25,24 @@ class InstructionFetch extends Module {
   val io = IO(new Bundle {
     val jump_flag_id = Input(Bool())
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
-    val rom_instruction = Input(UInt(Parameters.DataWidth))
+    val instruction_read_data = Input(UInt(Parameters.DataWidth))
+    val instruction_valid = Input(Bool())
 
-    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
-    val id_instruction_address = Output(UInt(Parameters.AddrWidth))
-    val id_instruction = Output(UInt(Parameters.InstructionWidth))
-
+    val instruction_address = Output(UInt(Parameters.AddrWidth))
+    val instruction = Output(UInt(Parameters.InstructionWidth))
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
-  pc := Mux(
-    io.jump_flag_id,
-    io.jump_address_id,
-    pc + 4.U,
-  )
 
-  io.rom_instruction_address := pc
-
-  io.id_instruction := io.rom_instruction
-  io.id_instruction_address := pc
+  when(io.instruction_valid) {
+    when(io.jump_flag_id){
+      pc := io.jump_address_id
+    }.otherwise {
+      pc := pc + 4.U
+    }
+    io.instruction := io.instruction_read_data
+  }.otherwise{
+    pc := pc
+    io.instruction := 0x00000013.U
+  }
+  io.instruction_address := pc
 }

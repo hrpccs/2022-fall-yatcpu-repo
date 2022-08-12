@@ -24,7 +24,6 @@ class WriteBack extends Module {
     val alu_result = Input(UInt(Parameters.DataWidth))
     val memory_read_data = Input(UInt(Parameters.DataWidth))
     val regs_write_source = Input(UInt(2.W))
-
     val regs_write_data = Output(UInt(Parameters.DataWidth))
   })
   io.regs_write_data := MuxLookup(
