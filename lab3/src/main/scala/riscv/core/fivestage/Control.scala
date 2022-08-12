@@ -20,8 +20,6 @@ import riscv.Parameters
 class Control extends Module {
   val io = IO(new Bundle {
     val jump_flag = Input(Bool())
-    val stall_flag_if = Input(Bool())
-    val stall_flag_mem = Input(Bool())
     val jump_instruction_id = Input(Bool())
     val rs1_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val rs2_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
@@ -34,8 +32,6 @@ class Control extends Module {
     val id_flush = Output(Bool())
     val pc_stall = Output(Bool())
     val if_stall = Output(Bool())
-    val id_stall = Output(Bool())
-    val ex_stall = Output(Bool())
   })
 
   val id_hazard = (io.memory_read_enable_ex || io.jump_instruction_id) && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id) ||
@@ -43,8 +39,6 @@ class Control extends Module {
   io.if_flush := io.jump_flag && !id_hazard
   io.id_flush := id_hazard
 
-  io.pc_stall := io.stall_flag_mem || id_hazard || io.stall_flag_if
-  io.if_stall := io.stall_flag_mem || id_hazard
-  io.id_stall := io.stall_flag_mem
-  io.ex_stall := io.stall_flag_mem
+  io.pc_stall := id_hazard
+  io.if_stall := id_hazard
 }
