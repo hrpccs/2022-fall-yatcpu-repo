@@ -29,10 +29,8 @@ class InstructionFetch extends Module {
     val jump_address_id = Input(UInt(Parameters.AddrWidth))
     val rom_instruction = Input(UInt(Parameters.DataWidth))
 
-    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
-    val id_instruction_address = Output(UInt(Parameters.AddrWidth))
+    val instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
-    val ctrl_stall_flag = Output(Bool())
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
@@ -44,8 +42,6 @@ class InstructionFetch extends Module {
     )
   )
 
-  io.rom_instruction_address := pc
-  io.id_instruction_address := pc
+  io.instruction_address := pc
   io.id_instruction := io.rom_instruction
-  io.ctrl_stall_flag := false.B
 }

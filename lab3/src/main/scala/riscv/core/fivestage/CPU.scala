@@ -37,8 +37,6 @@ class CPU extends Module {
   val csr_regs = Module(new CSR)
 
   ctrl.io.jump_flag := id.io.if_jump_flag
-  ctrl.io.stall_flag_if := inst_fetch.io.ctrl_stall_flag
-  ctrl.io.stall_flag_mem := mem.io.ctrl_stall_flag
   ctrl.io.jump_instruction_id := id.io.ctrl_jump_instruction
   ctrl.io.rs1_id := id.io.regs_reg1_read_address
   ctrl.io.rs2_id := id.io.regs_reg2_read_address
@@ -56,7 +54,7 @@ class CPU extends Module {
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
-  io.instruction_address := inst_fetch.io.rom_instruction_address
+  io.instruction_address := inst_fetch.io.instruction_address
   inst_fetch.io.stall_flag_ctrl := ctrl.io.pc_stall
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag
   inst_fetch.io.jump_address_id := id.io.if_jump_address
@@ -65,7 +63,7 @@ class CPU extends Module {
   if2id.io.stall_flag := ctrl.io.if_stall
   if2id.io.flush_enable := ctrl.io.if_flush
   if2id.io.instruction := inst_fetch.io.id_instruction
-  if2id.io.instruction_address := inst_fetch.io.id_instruction_address
+  if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
@@ -79,17 +77,16 @@ class CPU extends Module {
   id.io.interrupt_assert := clint.io.id_interrupt_assert
   id.io.interrupt_handler_address := clint.io.id_interrupt_handler_address
 
-  id2ex.io.stall_flag := ctrl.io.id_stall
   id2ex.io.flush_enable := ctrl.io.id_flush
   id2ex.io.instruction := if2id.io.output_instruction
   id2ex.io.instruction_address := if2id.io.output_instruction_address
+  id2ex.io.reg1_data := regs.io.read_data1
+  id2ex.io.reg2_data := regs.io.read_data2
   id2ex.io.regs_reg1_read_address := id.io.regs_reg1_read_address
   id2ex.io.regs_reg2_read_address := id.io.regs_reg2_read_address
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable
   id2ex.io.regs_write_address := id.io.ex_reg_write_address
   id2ex.io.regs_write_source := id.io.ex_reg_write_source
-  id2ex.io.reg1_data := regs.io.read_data1
-  id2ex.io.reg2_data := regs.io.read_data2
   id2ex.io.immediate := id.io.ex_immediate
   id2ex.io.aluop1_source := id.io.ex_aluop1_source
   id2ex.io.aluop2_source := id.io.ex_aluop2_source
@@ -112,14 +109,11 @@ class CPU extends Module {
   ex.io.reg1_forward := forwarding.io.reg1_forward_ex
   ex.io.reg2_forward := forwarding.io.reg2_forward_ex
 
-  ex2mem.io.stall_flag := ctrl.io.ex_stall
-  ex2mem.io.flush_enable := false.B
   ex2mem.io.regs_write_enable := id2ex.io.output_regs_write_enable
   ex2mem.io.regs_write_source := id2ex.io.output_regs_write_source
   ex2mem.io.regs_write_address := id2ex.io.output_regs_write_address
   ex2mem.io.instruction_address := id2ex.io.output_instruction_address
-  ex2mem.io.instruction := id2ex.io.output_instruction
-  ex2mem.io.reg1_data := id2ex.io.output_reg1_data
+  ex2mem.io.funct3 := id2ex.io.output_instruction(14, 12)
   ex2mem.io.reg2_data := ex.io.mem_reg2_data
   ex2mem.io.memory_read_enable := id2ex.io.output_memory_read_enable
   ex2mem.io.memory_write_enable := id2ex.io.output_memory_write_enable
@@ -130,7 +124,7 @@ class CPU extends Module {
   mem.io.reg2_data := ex2mem.io.output_reg2_data
   mem.io.memory_read_enable := ex2mem.io.output_memory_read_enable
   mem.io.memory_write_enable := ex2mem.io.output_memory_write_enable
-  mem.io.funct3 := ex2mem.io.output_instruction(14, 12)
+  mem.io.funct3 := ex2mem.io.output_funct3
   mem.io.regs_write_source := ex2mem.io.output_regs_write_source
   mem.io.csr_read_data := ex2mem.io.output_csr_read_data
   io.device_select := mem.io.bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
@@ -160,8 +154,8 @@ class CPU extends Module {
   forwarding.io.rd_wb := mem2wb.io.output_regs_write_address
   forwarding.io.reg_write_enable_wb := mem2wb.io.output_regs_write_enable
 
+  clint.io.instruction_address_if := inst_fetch.io.instruction_address
   clint.io.instruction_id := if2id.io.output_instruction
-  clint.io.instruction_address_if := inst_fetch.io.id_instruction_address
   clint.io.jump_flag := id.io.if_jump_flag
   clint.io.jump_address := ex2mem.io.output_alu_result
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag

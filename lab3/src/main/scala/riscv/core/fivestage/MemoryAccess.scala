@@ -30,7 +30,6 @@ class MemoryAccess extends Module {
     val csr_read_data = Input(UInt(Parameters.DataWidth))
 
     val wb_memory_read_data = Output(UInt(Parameters.DataWidth))
-    val ctrl_stall_flag = Output(Bool())
     val forward_data = Output(UInt(Parameters.DataWidth))
 
     val bundle = new RamAccessBundle
@@ -42,7 +41,6 @@ class MemoryAccess extends Module {
   io.bundle.address := io.alu_result
   io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
   io.wb_memory_read_data := 0.U
-  io.ctrl_stall_flag := false.B
 
   when(io.memory_read_enable) {
     val data = io.bundle.read_data

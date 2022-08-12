@@ -19,7 +19,6 @@ import riscv.Parameters
 
 class ID2EX extends Module {
   val io = IO(new Bundle {
-    val stall_flag = Input(Bool())
     val flush_enable = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
@@ -57,7 +56,7 @@ class ID2EX extends Module {
     val output_memory_write_enable = Output(Bool())
     val output_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
-  val write_enable = !io.stall_flag && !io.flush_enable
+  val write_enable =  !io.flush_enable
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))
   instruction.io.in := io.instruction
