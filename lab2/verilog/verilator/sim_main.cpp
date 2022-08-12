@@ -189,11 +189,6 @@ class Simulator {
       	top->clock = !top->clock;
       	counter = 0;
       }
-      if(main_time & 0x00ff0 == 0xff0) {
-        top->interrupt_flag = 1;
-      } else{
-        top->interrupt_flag = 0;
-      }
       if (main_time > 2) {
         top->reset = 0;
       }
