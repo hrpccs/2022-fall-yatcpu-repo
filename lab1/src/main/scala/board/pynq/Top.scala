@@ -31,9 +31,9 @@ class Top extends Module {
 
     val led = Output(UInt(4.W))
   })
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val dummy = Module(new Dummy)
 
   display.io.bundle <> dummy.io.bundle

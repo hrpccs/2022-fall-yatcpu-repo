@@ -191,6 +191,7 @@ class Simulator {
         top->reset = 0;
       }
 //      top->io_mem_slave_read_data = memory_read_word;
+      top->io_instruction_valid = 1;
       top->io_memory_bundle_read_data = data_memory_read_word;
       top->io_instruction = inst_memory_read_word;
       top->clock = !top->clock;
