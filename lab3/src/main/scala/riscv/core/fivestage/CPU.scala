@@ -156,8 +156,8 @@ class CPU extends Module {
 
   clint.io.instruction_address_if := inst_fetch.io.instruction_address
   clint.io.instruction_id := if2id.io.output_instruction
-  clint.io.jump_flag := id.io.if_jump_flag
-  clint.io.jump_address := ex2mem.io.output_alu_result
+  clint.io.jump_flag := id.io.clint_jump_flag
+  clint.io.jump_address := id.io.clint_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag
   clint.io.csr_bundle <> csr_regs.io.clint_access_bundle
 

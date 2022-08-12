@@ -158,6 +158,8 @@ class InstructionDecode extends Module {
     val ex_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
     val ex_csr_write_enable = Output(Bool())
     val ctrl_jump_instruction = Output(Bool())
+    val clint_jump_flag = Output(Bool())
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
     val if_jump_flag = Output(Bool())
     val if_jump_address = Output(UInt(Parameters.AddrWidth))
   })
@@ -234,8 +236,7 @@ class InstructionDecode extends Module {
     )
   io.ctrl_jump_instruction := (opcode === Instructions.jal) ||
     (opcode === Instructions.jalr) || (opcode === InstructionTypes.B)
-  io.if_jump_flag := io.interrupt_assert ||
-    (opcode === Instructions.jal) ||
+  val instruction_jump_flag = (opcode === Instructions.jal) ||
     (opcode === Instructions.jalr) ||
     (opcode === InstructionTypes.B) && MuxLookup(
       funct3,
@@ -249,8 +250,12 @@ class InstructionDecode extends Module {
         InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
       )
     )
+  val instruction_jump_address = io.ex_immediate + Mux(opcode === Instructions.jalr, reg1_data, io.instruction_address)
+  io.clint_jump_flag := instruction_jump_flag
+  io.clint_jump_address := instruction_jump_address
+  io.if_jump_flag := io.interrupt_assert || instruction_jump_flag
   io.if_jump_address := Mux(io.interrupt_assert,
     io.interrupt_handler_address,
-    io.ex_immediate + Mux(opcode === Instructions.jalr, reg1_data, io.instruction_address)
+    instruction_jump_address
   )
 }
