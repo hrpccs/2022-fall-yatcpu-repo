@@ -173,10 +173,12 @@ class Simulator {
   void run() {
     top->reset = 1;
     top->clock = 0;
+    top->io_instruction_valid = 1;
     top->eval();
     vcd_tracer->dump(main_time);
     uint32_t data_memory_read_word = 0;
     uint32_t inst_memory_read_word = 0;
+    uint32_t timer_interrupt = 0;
 	uint32_t counter = 0;
 	uint32_t clocktime = 1;
     bool memory_write_strobe[4] = {false};
@@ -191,12 +193,11 @@ class Simulator {
         top->reset = 0;
       }
 //      top->io_mem_slave_read_data = memory_read_word;
-      top->io_instruction_valid = 1;
       top->io_memory_bundle_read_data = data_memory_read_word;
       top->io_instruction = inst_memory_read_word;
       top->clock = !top->clock;
       top->eval();
-
+      top->io_interrupt_flag = 0;
 
 	  data_memory_read_word = memory->read(top->io_memory_bundle_address);
 

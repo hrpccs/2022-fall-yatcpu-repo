@@ -33,8 +33,8 @@ class Top extends Module {
   io.instruction_address := cpu.io.instruction_address
   cpu.io.instruction := io.instruction
 
+  cpu.io.interrupt_flag := io.interrupt_flag
   cpu.io.instruction_valid := io.instruction_valid
-
 }
 
 object VerilogGenerator extends App {

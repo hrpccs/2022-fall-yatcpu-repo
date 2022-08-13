@@ -16,6 +16,7 @@ package board.pynq
 
 import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.util.Cat
 import peripheral._
 import riscv.Parameters
 import riscv.core.{CPU, ProgramCounter}
@@ -29,16 +30,25 @@ class Top extends Module {
     val hdmi_data_p = Output(UInt(3.W))
     val hdmi_hpdn = Output(Bool())
 
+    val tx = Output(Bool())
+    val rx = Input(Bool())
+
     val led = Output(UInt(4.W))
   })
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
+  val timer = Module(new Timer)
+  val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
   val dummy = Module(new Dummy)
 
   display.io.bundle <> dummy.io.bundle
   mem.io.bundle <> dummy.io.bundle
   mem.io.debug_read_address := 0.U
+  timer.io.bundle <> dummy.io.bundle
+  uart.io.bundle <> dummy.io.bundle
+  io.tx := uart.io.txd
+  uart.io.rxd := io.rx
 
   val instruction_rom = Module(new InstructionROM(binaryFilename))
   val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
@@ -56,6 +66,7 @@ class Top extends Module {
 
   withClock(CPU_tick.asClock) {
     val cpu = Module(new CPU)
+    cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
     cpu.io.debug_read_address := 0.U
     cpu.io.instruction_valid := rom_loader.io.load_finished
     mem.io.instruction_address := cpu.io.instruction_address
@@ -66,7 +77,11 @@ class Top extends Module {
       cpu.io.memory_bundle.read_data := 0.U
     }.otherwise {
       rom_loader.io.bundle.read_data := 0.U
-      when(cpu.io.deviceSelect === 1.U) {
+      when(cpu.io.deviceSelect === 4.U) {
+        cpu.io.memory_bundle <> timer.io.bundle
+      }.elsewhen(cpu.io.deviceSelect === 2.U) {
+        cpu.io.memory_bundle <> uart.io.bundle
+      }.elsewhen(cpu.io.deviceSelect === 1.U) {
         cpu.io.memory_bundle <> display.io.bundle
       }.otherwise {
         cpu.io.memory_bundle <> mem.io.bundle
