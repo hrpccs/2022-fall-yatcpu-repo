@@ -38,14 +38,15 @@ class CPU extends Module {
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
-  io.instruction_address := inst_fetch.io.rom_instruction_address
+  io.instruction_address := inst_fetch.io.instruction_address
   inst_fetch.io.jump_flag_ex := ex.io.if_jump_flag
   inst_fetch.io.jump_address_ex := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
+  inst_fetch.io.instruction_valid := io.instruction_valid
 
   if2id.io.jump_flag := ex.io.if_jump_flag
   if2id.io.instruction := inst_fetch.io.id_instruction
-  if2id.io.instruction_address := inst_fetch.io.id_instruction_address
+  if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
@@ -85,7 +86,7 @@ class CPU extends Module {
   io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
 
   clint.io.instruction_ex := if2id.io.output_instruction
-  clint.io.instruction_address_id := inst_fetch.io.id_instruction_address
+  clint.io.instruction_address_id := inst_fetch.io.instruction_address
   clint.io.jump_flag := ex.io.clint_jump_flag
   clint.io.jump_address := ex.io.clint_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag

@@ -26,16 +26,16 @@ class InstructionFetch extends Module {
     val jump_flag_ex = Input(Bool())
     val jump_address_ex = Input(UInt(Parameters.AddrWidth))
     val rom_instruction = Input(UInt(Parameters.DataWidth))
+    val instruction_valid = Input(Bool())
 
-    val rom_instruction_address = Output(UInt(Parameters.AddrWidth))
-    val id_instruction_address = Output(UInt(Parameters.AddrWidth))
+    val instruction_address = Output(UInt(Parameters.AddrWidth))
     val id_instruction = Output(UInt(Parameters.InstructionWidth))
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
-  pc := Mux(io.jump_flag_ex, io.jump_address_ex, pc + 4.U)
+  pc := Mux(io.instruction_valid, Mux(io.jump_flag_ex, io.jump_address_ex, pc + 4.U), pc)
 
-  io.rom_instruction_address := pc
-  io.id_instruction_address := pc
+  io.instruction_address := pc
   io.id_instruction := io.rom_instruction
+  io.id_instruction := Mux(io.instruction_valid, io.rom_instruction, InstructionsNop.nop)
 }

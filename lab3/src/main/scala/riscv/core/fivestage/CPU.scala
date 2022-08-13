@@ -59,6 +59,7 @@ class CPU extends Module {
   inst_fetch.io.jump_flag_id := id.io.if_jump_flag
   inst_fetch.io.jump_address_id := id.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
+  inst_fetch.io.instruction_valid := io.instruction_valid
 
   if2id.io.stall_flag := ctrl.io.if_stall
   if2id.io.flush_enable := ctrl.io.if_flush

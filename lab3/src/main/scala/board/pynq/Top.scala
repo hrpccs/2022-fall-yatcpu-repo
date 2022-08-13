@@ -16,12 +16,13 @@ package board.pynq
 
 import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.util.Cat
 import peripheral._
-import riscv.core.CPU
 import riscv.{ImplementationType, Parameters}
+import riscv.core.CPU
 
 class Top extends Module {
-  val binaryFilename = "tetris.asmbin"
+  val binaryFilename = "hello.asmbin"
   val io = IO(new Bundle() {
     val hdmi_clk_n = Output(Bool())
     val hdmi_clk_p = Output(Bool())
@@ -34,40 +35,61 @@ class Top extends Module {
 
     val led = Output(UInt(4.W))
   })
-  io.led := 15.U(4.W)
-
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
-  cpu.io.interrupt_flag := 0.U
-  cpu.io.debug_read_address := 0.U
-
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
-  cpu.io.instruction := instruction_rom.io.data
-
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val hdmi_display = Module(new HDMIDisplay)
   val display = Module(new CharacterDisplay)
   val timer = Module(new Timer)
   val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
   val dummy = Module(new Dummy)
+
   display.io.bundle <> dummy.io.bundle
   mem.io.bundle <> dummy.io.bundle
+  mem.io.debug_read_address := 0.U
   timer.io.bundle <> dummy.io.bundle
   uart.io.bundle <> dummy.io.bundle
   io.tx := uart.io.txd
   uart.io.rxd := io.rx
-  cpu.io.interrupt_flag := uart.io.signal_interrupt ## timer.io.signal_interrupt
-  mem.io.debug_read_address := 0.U
-  cpu.io.debug_read_address := 0.U
-  when(cpu.io.device_select === 4.U) {
-    timer.io.bundle <> cpu.io.memory_bundle
-  }.elsewhen(cpu.io.device_select === 2.U) {
-    uart.io.bundle <> cpu.io.memory_bundle
-  }.elsewhen(cpu.io.device_select === 1.U) {
-    display.io.bundle <> cpu.io.memory_bundle
-  }.otherwise {
-    mem.io.bundle <> cpu.io.memory_bundle
+
+  val instruction_rom = Module(new InstructionROM(binaryFilename))
+  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
+
+  rom_loader.io.rom_data := instruction_rom.io.data
+  rom_loader.io.load_address := Parameters.EntryAddress
+  instruction_rom.io.address := rom_loader.io.rom_address
+
+  val CPU_clkdiv = RegInit(UInt(2.W),0.U)
+  val CPU_tick = Wire(Bool())
+  val CPU_next = Wire(UInt(2.W))
+  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
+  CPU_tick := CPU_clkdiv === 0.U
+  CPU_clkdiv := CPU_next
+
+  withClock(CPU_tick.asClock) {
+    val cpu = Module(new CPU(implementation = ImplementationType.ThreeStage))
+    cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
+    cpu.io.debug_read_address := 0.U
+    cpu.io.instruction_valid := rom_loader.io.load_finished
+    mem.io.instruction_address := cpu.io.instruction_address
+    cpu.io.instruction := mem.io.instruction
+
+    when(!rom_loader.io.load_finished) {
+      rom_loader.io.bundle <> mem.io.bundle
+      cpu.io.memory_bundle.read_data := 0.U
+    }.otherwise {
+      rom_loader.io.bundle.read_data := 0.U
+      when(cpu.io.device_select === 4.U) {
+        cpu.io.memory_bundle <> timer.io.bundle
+      }.elsewhen(cpu.io.device_select === 2.U) {
+        cpu.io.memory_bundle <> uart.io.bundle
+      }.elsewhen(cpu.io.device_select === 1.U) {
+        cpu.io.memory_bundle <> display.io.bundle
+      }.otherwise {
+        cpu.io.memory_bundle <> mem.io.bundle
+      }
+    }
   }
+
+  io.led := 15.U(4.W)
 
   display.io.x := hdmi_display.io.x
   display.io.y := hdmi_display.io.y

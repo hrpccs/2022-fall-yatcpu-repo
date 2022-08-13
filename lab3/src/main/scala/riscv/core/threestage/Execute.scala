@@ -16,7 +16,7 @@ package riscv.core.threestage
 
 import chisel3._
 import chisel3.util._
-import peripheral.{RAMBundle, RamAccessBundle}
+import peripheral.RAMBundle
 import riscv.Parameters
 
 class Execute extends Module {
@@ -35,7 +35,7 @@ class Execute extends Module {
     val interrupt_assert_clint = Input(Bool())
     val interrupt_handler_address_clint = Input(UInt(Parameters.AddrWidth))
 
-    val memory_bundle = new RamAccessBundle
+    val memory_bundle = Flipped(new RAMBundle)
 
     val csr_write_data = Output(UInt(Parameters.DataWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
