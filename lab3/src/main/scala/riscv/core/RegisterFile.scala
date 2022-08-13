@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.fivestage
+package riscv.core
 
 import chisel3._
 import chisel3.util._
@@ -45,7 +45,7 @@ class RegisterFile extends Module {
   })
   val registers = Reg(Vec(Parameters.PhysicalRegisters, UInt(Parameters.DataWidth)))
 
-  when(!reset.asBool()) {
+  when(!reset.asBool) {
     when(io.write_enable && io.write_address =/= 0.U) {
       registers(io.write_address) := io.write_data
     }

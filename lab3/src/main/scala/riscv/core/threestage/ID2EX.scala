@@ -15,6 +15,7 @@
 package riscv.core.threestage
 
 import chisel3._
+import riscv.core.PipelineRegister
 import riscv.Parameters
 
 class ID2EX extends Module {

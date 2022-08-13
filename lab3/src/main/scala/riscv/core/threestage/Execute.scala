@@ -18,6 +18,7 @@ import chisel3._
 import chisel3.util._
 import peripheral.RAMBundle
 import riscv.Parameters
+import riscv.core.{ALU, ALUControl}
 
 class Execute extends Module {
   val io = IO(new Bundle {

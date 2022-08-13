@@ -16,7 +16,7 @@ package riscv.core.fivestage
 
 import chisel3._
 import riscv.Parameters
-import riscv.core.CPUBundle
+import riscv.core.{CPUBundle, RegisterFile, CSR}
 
 class CPU extends Module {
   val io = IO(new CPUBundle)

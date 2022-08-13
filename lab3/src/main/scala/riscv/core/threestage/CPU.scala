@@ -16,7 +16,7 @@ package riscv.core.threestage
 
 import chisel3._
 import riscv.Parameters
-import riscv.core.CPUBundle
+import riscv.core.{CPUBundle, CSR, RegisterFile}
 
 class CPU extends Module {
   val io = IO(new CPUBundle)
@@ -85,8 +85,9 @@ class CPU extends Module {
   io.memory_bundle <> ex.io.memory_bundle
   io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
 
-  clint.io.instruction_ex := if2id.io.output_instruction
-  clint.io.instruction_address_id := inst_fetch.io.instruction_address
+  clint.io.instruction_ex := id2ex.io.output_instruction
+  clint.io.instruction_address_if := inst_fetch.io.instruction_address
+  clint.io.instruction_address_id := if2id.io.output_instruction_address
   clint.io.jump_flag := ex.io.clint_jump_flag
   clint.io.jump_address := ex.io.clint_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.fivestage
+package riscv.core
 
 import chisel3._
 import riscv.Parameters

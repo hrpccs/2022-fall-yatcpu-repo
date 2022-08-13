@@ -33,9 +33,12 @@ class InstructionFetch extends Module {
   })
   val pc = RegInit(ProgramCounter.EntryAddress)
 
-  pc := Mux(io.instruction_valid, Mux(io.jump_flag_ex, io.jump_address_ex, pc + 4.U), pc)
+  pc := Mux(
+    io.instruction_valid,
+    Mux(io.jump_flag_ex, io.jump_address_ex, pc + 4.U),
+    pc
+  )
 
   io.instruction_address := pc
-  io.id_instruction := io.rom_instruction
   io.id_instruction := Mux(io.instruction_valid, io.rom_instruction, InstructionsNop.nop)
 }

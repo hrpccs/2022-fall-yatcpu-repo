@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core
 
 import chisel3._
 import chisel3.util._
 import riscv.Parameters
+import riscv.core.threestage.CSRDirectAccessBundle
 
 
 object CSRRegister {

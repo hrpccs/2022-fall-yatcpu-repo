@@ -16,6 +16,7 @@ package riscv.core.fivestage
 
 import chisel3._
 import riscv.Parameters
+import riscv.core.PipelineRegister
 
 class EX2MEM extends Module {
   val io = IO(new Bundle() {

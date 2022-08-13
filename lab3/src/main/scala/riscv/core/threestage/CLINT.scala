@@ -43,6 +43,7 @@ class CLINT extends Module {
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
 
     val instruction_ex = Input(UInt(Parameters.InstructionWidth))
+    val instruction_address_if = Input(UInt(Parameters.AddrWidth))
     val instruction_address_id = Input(UInt(Parameters.AddrWidth))
 
     val jump_flag = Input(Bool())
@@ -54,10 +55,11 @@ class CLINT extends Module {
     val csr_bundle = new CSRDirectAccessBundle
   })
   val interrupt_enable = io.csr_bundle.mstatus(3)
+  val jumpping = RegNext(io.jump_flag || io.ex_interrupt_assert)
   val instruction_address = Mux(
     io.jump_flag,
     io.jump_address,
-    io.instruction_address_id,
+    Mux(jumpping, io.instruction_address_if, io.instruction_address_id)
   )
   val mstatus_disable_interrupt = io.csr_bundle.mstatus(31, 4) ## 0.U(1.W) ## io.csr_bundle.mstatus(2, 0)
   val mstatus_recover_interrupt = io.csr_bundle.mstatus(31, 4) ## io.csr_bundle.mstatus(7) ## io.csr_bundle.mstatus(2, 0)
