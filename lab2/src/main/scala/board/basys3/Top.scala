@@ -18,7 +18,7 @@ import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util._
-import peripheral.{CharacterDisplay, Dummy, InstructionROM, Memory, ROMLoader, VGADisplay}
+import peripheral.{CharacterDisplay, InstructionROM, Memory, VGADisplay}
 import riscv._
 import riscv.core.{CPU, ProgramCounter}
 
@@ -40,49 +40,37 @@ class Top extends Module {
     val led = Output(UInt(16.W))
 
   })
+
+  val cpu = Module(new CPU)
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
+
   val vga_display = Module(new VGADisplay)
   val display = Module(new CharacterDisplay)
+  val inst_mem = Module(new InstructionROM(binaryFilename))
 
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  val dummy = Module(new Dummy)
-
-  display.io.bundle <> dummy.io.bundle
-  mem.io.bundle <> dummy.io.bundle
+  display.io.bundle.address := 0.U
+  display.io.bundle.write_enable := false.B
+  display.io.bundle.write_data := 0.U
+  display.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
+  mem.io.bundle.address := 0.U
+  mem.io.bundle.write_enable := false.B
+  mem.io.bundle.write_data := 0.U
+  mem.io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
   mem.io.debug_read_address := 0.U
 
-  val instruction_rom = Module(new InstructionROM(binaryFilename))
-  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
+  cpu.io.debug_read_address := 0.U
 
-  rom_loader.io.rom_data := instruction_rom.io.data
-  rom_loader.io.load_address := Parameters.EntryAddress
-  instruction_rom.io.address := rom_loader.io.rom_address
+  mem.io.bundle <> cpu.io.memory_bundle
 
-  val CPU_clkdiv = RegInit(UInt(2.W), 0.U)
-  val CPU_tick = Wire(Bool())
-  val CPU_next = Wire(UInt(2.W))
-  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
-  CPU_tick := CPU_clkdiv === 0.U
-  CPU_clkdiv := CPU_next
-
-  withClock(CPU_tick.asClock) {
-    val cpu = Module(new CPU)
-    cpu.io.debug_read_address := 0.U
-    cpu.io.instruction_valid := rom_loader.io.load_finished
-    mem.io.instruction_address := cpu.io.instruction_address
-    cpu.io.instruction := mem.io.instruction
-
-    when(!rom_loader.io.load_finished) {
-      rom_loader.io.bundle <> mem.io.bundle
-      cpu.io.memory_bundle.read_data := 0.U
-    }.otherwise {
-      rom_loader.io.bundle.read_data := 0.U
-      when(cpu.io.deviceSelect === 1.U) {
-        cpu.io.memory_bundle <> display.io.bundle
-      }.otherwise {
-        cpu.io.memory_bundle <> mem.io.bundle
-      }
-    }
+  when(cpu.io.deviceSelect === 1.U) {
+    display.io.bundle <> cpu.io.memory_bundle
+  }.otherwise {
+    mem.io.bundle <> cpu.io.memory_bundle
   }
+
+  inst_mem.io.address := (cpu.io.instruction_address - ProgramCounter.EntryAddress) >> 2
+  cpu.io.instruction := inst_mem.io.data
+
   io.hsync := vga_display.io.hsync
   io.vsync := vga_display.io.vsync
 
