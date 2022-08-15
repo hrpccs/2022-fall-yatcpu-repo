@@ -14,12 +14,11 @@
 
 package riscv.singlecycle
 
-import board.basys3.BootStates
+
 import chisel3._
-import chisel3.util.{is, switch}
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import peripheral.{CharacterBufferInfo, CharacterDisplay, InstructionROM, Memory, SyncBlockRAM}
+import peripheral.{InstructionROM, Memory, ROMLoader}
 import riscv.core.{CPU, ProgramCounter}
 import riscv.{Parameters, TestAnnotations}
 
@@ -35,16 +34,41 @@ class TestTopModule(exeFilename: String) extends Module {
   })
 
   val mem = Module(new Memory(8192))
-  val cpu = Module(new CPU)
-  val inst_mem = Module(new InstructionROM(exeFilename))
+  val instruction_rom = Module(new InstructionROM(exeFilename))
+  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
 
-  mem.io.bundle <> cpu.io.memory_bundle
-  inst_mem.io.address := (cpu.io.instruction_address - ProgramCounter.EntryAddress) >> 2
-  cpu.io.instruction := inst_mem.io.data
+  rom_loader.io.rom_data := instruction_rom.io.data
+  rom_loader.io.load_address := Parameters.EntryAddress
+  instruction_rom.io.address := rom_loader.io.rom_address
+
+  val CPU_clkdiv = RegInit(UInt(2.W), 0.U)
+  val CPU_tick = Wire(Bool())
+  val CPU_next = Wire(UInt(2.W))
+  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
+  CPU_tick := CPU_clkdiv === 0.U
+  CPU_clkdiv := CPU_next
+
+  withClock(CPU_tick.asClock) {
+    val cpu = Module(new CPU)
+    cpu.io.debug_read_address := 0.U
+    cpu.io.instruction_valid := rom_loader.io.load_finished
+    mem.io.instruction_address := cpu.io.instruction_address
+    cpu.io.instruction := mem.io.instruction
+
+
+    when(!rom_loader.io.load_finished) {
+      rom_loader.io.bundle <> mem.io.bundle
+      cpu.io.memory_bundle.read_data := 0.U
+    }.otherwise {
+      rom_loader.io.bundle.read_data := 0.U
+      cpu.io.memory_bundle <> mem.io.bundle
+    }
+
+    cpu.io.debug_read_address := io.regs_debug_read_address
+    io.regs_debug_read_data := cpu.io.debug_read_data
+  }
 
   mem.io.debug_read_address := io.mem_debug_read_address
-  cpu.io.debug_read_address := io.regs_debug_read_address
-  io.regs_debug_read_data := cpu.io.debug_read_data
   io.mem_debug_read_data := mem.io.debug_read_data
 }
 
@@ -60,7 +84,7 @@ class FibonacciTest extends AnyFlatSpec with ChiselScalatestTester {
 
       c.io.mem_debug_read_address.poke(4.U)
       c.clock.step()
-      c.io.mem_debug_read_data.expect(55.U)
+      c.io.mem_debug_read_data.expect(56.U)
     }
   }
 }
