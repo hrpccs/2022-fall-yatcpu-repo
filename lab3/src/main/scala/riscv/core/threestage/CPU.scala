@@ -21,6 +21,7 @@ import riscv.core.{CPUBundle, CSR, RegisterFile}
 class CPU extends Module {
   val io = IO(new CPUBundle)
 
+  val ctrl = Module(new Control)
   val regs = Module(new RegisterFile)
   val inst_fetch = Module(new InstructionFetch)
   val if2id = Module(new IF2ID)
@@ -29,6 +30,8 @@ class CPU extends Module {
   val ex = Module(new Execute)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
+
+  ctrl.io.jump_flag := ex.io.if_jump_flag
 
   regs.io.read_address1 := id.io.regs_reg1_read_address
   regs.io.read_address2 := id.io.regs_reg2_read_address
@@ -44,14 +47,14 @@ class CPU extends Module {
   inst_fetch.io.rom_instruction := io.instruction
   inst_fetch.io.instruction_valid := io.instruction_valid
 
-  if2id.io.jump_flag := ex.io.if_jump_flag
+  if2id.io.flush := ctrl.io.if_flush
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
 
-  id2ex.io.jump_flag := ex.io.if_jump_flag
+  id2ex.io.flush := ctrl.io.id_flush
   id2ex.io.instruction := if2id.io.output_instruction
   id2ex.io.instruction_address := if2id.io.output_instruction_address
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable

@@ -36,48 +36,48 @@ class MEM2WB extends Module {
     val output_memory_read_data = Output(UInt(Parameters.DataWidth))
     val output_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
-  val flush_enable = false.B
-  val write_enable = true.B
+  val stall = false.B
+  val flush = false.B
 
   val alu_result = Module(new PipelineRegister())
   alu_result.io.in := io.alu_result
-  alu_result.io.write_enable := write_enable
-  alu_result.io.flush_enable := flush_enable
+  alu_result.io.stall := stall
+  alu_result.io.flush := flush
   io.output_alu_result := alu_result.io.out
 
   val memory_read_data = Module(new PipelineRegister())
   memory_read_data.io.in := io.memory_read_data
-  memory_read_data.io.write_enable := write_enable
-  memory_read_data.io.flush_enable := flush_enable
+  memory_read_data.io.stall := stall
+  memory_read_data.io.flush := flush
   io.output_memory_read_data := memory_read_data.io.out
 
   val regs_write_enable = Module(new PipelineRegister(1))
   regs_write_enable.io.in := io.regs_write_enable
-  regs_write_enable.io.write_enable := write_enable
-  regs_write_enable.io.flush_enable := flush_enable
+  regs_write_enable.io.stall := stall
+  regs_write_enable.io.flush := flush
   io.output_regs_write_enable := regs_write_enable.io.out
 
   val regs_write_source = Module(new PipelineRegister(2))
   regs_write_source.io.in := io.regs_write_source
-  regs_write_source.io.write_enable := write_enable
-  regs_write_source.io.flush_enable := flush_enable
+  regs_write_source.io.stall := stall
+  regs_write_source.io.flush := flush
   io.output_regs_write_source := regs_write_source.io.out
 
   val regs_write_address = Module(new PipelineRegister(Parameters.PhysicalRegisterAddrBits))
   regs_write_address.io.in := io.regs_write_address
-  regs_write_address.io.write_enable := write_enable
-  regs_write_address.io.flush_enable := flush_enable
+  regs_write_address.io.stall := stall
+  regs_write_address.io.flush := flush
   io.output_regs_write_address := regs_write_address.io.out
 
   val instruction_address = Module(new PipelineRegister(Parameters.InstructionBits))
   instruction_address.io.in := io.instruction_address
-  instruction_address.io.write_enable := write_enable
-  instruction_address.io.flush_enable := flush_enable
+  instruction_address.io.stall := stall
+  instruction_address.io.flush := flush
   io.output_instruction_address := instruction_address.io.out
 
   val csr_read_data = Module(new PipelineRegister())
   csr_read_data.io.in := io.csr_read_data
-  csr_read_data.io.write_enable := write_enable
-  csr_read_data.io.flush_enable := flush_enable
+  csr_read_data.io.stall := stall
+  csr_read_data.io.flush := flush
   io.output_csr_read_data := csr_read_data.io.out
 }

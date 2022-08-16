@@ -36,7 +36,7 @@ class MemoryAccess extends Module {
   })
   val mem_address_index = io.alu_result(log2Up(Parameters.WordSize) - 1, 0).asUInt
 
-  io.bundle.write_enable := false.B
+  io.bundle.write_enable := io.memory_write_enable
   io.bundle.write_data := 0.U
   io.bundle.address := io.alu_result
   io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
@@ -81,7 +81,6 @@ class MemoryAccess extends Module {
     )
   }.elsewhen(io.memory_write_enable) {
     io.bundle.write_data := io.reg2_data
-    io.bundle.write_enable := true.B
     io.bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
     when(io.funct3 === InstructionsTypeS.sb) {
       io.bundle.write_strobe(mem_address_index) := true.B

@@ -20,7 +20,7 @@ import riscv.core.PipelineRegister
 
 class IF2ID extends Module {
   val io = IO(new Bundle {
-    val jump_flag = Input(Bool())
+    val flush = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
@@ -30,24 +30,23 @@ class IF2ID extends Module {
     val output_interrupt_flag = Output(UInt(Parameters.InterruptFlagWidth))
   })
 
-  val write_enable = !io.jump_flag
-  val flush_enable = io.jump_flag
+  val stall = false.B
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))
   instruction.io.in := io.instruction
-  instruction.io.write_enable := write_enable
-  instruction.io.flush_enable := flush_enable
+  instruction.io.stall := stall
+  instruction.io.flush := io.flush
   io.output_instruction := instruction.io.out
 
   val instruction_address = Module(new PipelineRegister(defaultValue = ProgramCounter.EntryAddress))
   instruction_address.io.in := io.instruction_address
-  instruction_address.io.write_enable := write_enable
-  instruction_address.io.flush_enable := flush_enable
+  instruction_address.io.stall := stall
+  instruction_address.io.flush := io.flush
   io.output_instruction_address := instruction_address.io.out
 
   val interrupt_flag = Module(new PipelineRegister())
   interrupt_flag.io.in := io.interrupt_flag
-  interrupt_flag.io.write_enable := write_enable
-  interrupt_flag.io.flush_enable := flush_enable
+  interrupt_flag.io.stall := stall
+  interrupt_flag.io.flush := io.flush
   io.output_interrupt_flag := interrupt_flag.io.out
 }

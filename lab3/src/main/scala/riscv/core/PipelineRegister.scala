@@ -19,17 +19,18 @@ import riscv.Parameters
 
 class PipelineRegister(width: Int = Parameters.DataBits, defaultValue: UInt = 0.U) extends Module {
   val io = IO(new Bundle {
-    val write_enable = Input(Bool())
-    val flush_enable = Input(Bool())
+    val stall = Input(Bool())
+    val flush = Input(Bool())
     val in = Input(UInt(width.W))
     val out = Output(UInt(width.W))
   })
-
+  // Lab3(PipelineRegister)
   val reg = RegInit(UInt(width.W), defaultValue)
-  when(io.write_enable) {
-    reg := io.in
-  }.elsewhen(io.flush_enable) {
+
+  when(io.flush) {
     reg := defaultValue
+  }.elsewhen(!io.stall) {
+    reg := io.in
   }
   io.out := reg
 }
