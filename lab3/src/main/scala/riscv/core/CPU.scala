@@ -17,6 +17,7 @@ package riscv.core
 import chisel3._
 import threestage.{CPU => ThreeStageCPU}
 import fivestage.{CPU => FiveStageCPU}
+import fivestage2.{CPU => FiveStageCPU2}
 import fivestage3.{CPU => FiveStageCPU3}
 import riscv.ImplementationType
 
@@ -25,6 +26,9 @@ class CPU(val implementation: Int = ImplementationType.FiveStage) extends Module
   implementation match {
     case ImplementationType.ThreeStage =>
       val cpu = Module(new ThreeStageCPU)
+      cpu.io <> io
+    case ImplementationType.FiveStage2 =>
+      val cpu = Module(new FiveStageCPU2)
       cpu.io <> io
     case ImplementationType.FiveStage3 =>
       val cpu = Module(new FiveStageCPU3)

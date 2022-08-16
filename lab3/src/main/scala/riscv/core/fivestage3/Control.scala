@@ -24,8 +24,6 @@ class Control extends Module {
     val rs2_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val memory_read_enable_ex = Input(Bool())
     val rd_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val memory_read_enable_mem = Input(Bool())
-    val rd_mem = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
 
     val if_flush = Output(Bool())
     val id_flush = Output(Bool())

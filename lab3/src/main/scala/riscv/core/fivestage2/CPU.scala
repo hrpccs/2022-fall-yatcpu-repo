@@ -32,16 +32,13 @@ class CPU extends Module {
   val mem = Module(new MemoryAccess)
   val mem2wb = Module(new MEM2WB)
   val wb = Module(new WriteBack)
-  val forwarding = Module(new Forwarding)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
 
   ctrl.io.jump_flag := ex.io.if_jump_flag
   ctrl.io.rs1_id := id.io.regs_reg1_read_address
   ctrl.io.rs2_id := id.io.regs_reg2_read_address
-  ctrl.io.memory_read_enable_ex := id2ex.io.output_memory_read_enable
   ctrl.io.rd_ex := id2ex.io.output_regs_write_address
-  ctrl.io.memory_read_enable_mem := ex2mem.io.output_memory_read_enable
   ctrl.io.rd_mem := ex2mem.io.output_regs_write_address
 
   regs.io.write_enable := mem2wb.io.output_regs_write_enable
@@ -95,10 +92,6 @@ class CPU extends Module {
   ex.io.aluop1_source_id := id2ex.io.output_aluop1_source
   ex.io.aluop2_source_id := id2ex.io.output_aluop2_source
   ex.io.csr_read_data_id := id2ex.io.output_csr_read_data
-  ex.io.forward_from_mem := mem.io.forward_data
-  ex.io.forward_from_wb := wb.io.regs_write_data
-  ex.io.reg1_forward := forwarding.io.reg1_forward_ex
-  ex.io.reg2_forward := forwarding.io.reg2_forward_ex
   ex.io.interrupt_assert_clint := clint.io.ex_interrupt_assert
   ex.io.interrupt_handler_address_clint := clint.io.ex_interrupt_handler_address
 
@@ -137,13 +130,6 @@ class CPU extends Module {
   wb.io.memory_read_data := mem2wb.io.output_memory_read_data
   wb.io.regs_write_source := mem2wb.io.output_regs_write_source
   wb.io.csr_read_data := mem2wb.io.output_csr_read_data
-
-  forwarding.io.rs1_ex := id2ex.io.output_regs_reg1_read_address
-  forwarding.io.rs2_ex := id2ex.io.output_regs_reg2_read_address
-  forwarding.io.rd_mem := ex2mem.io.output_regs_write_address
-  forwarding.io.reg_write_enable_mem := ex2mem.io.output_regs_write_enable
-  forwarding.io.rd_wb := mem2wb.io.output_regs_write_address
-  forwarding.io.reg_write_enable_wb := mem2wb.io.output_regs_write_enable
 
   clint.io.instruction_address_if := inst_fetch.io.instruction_address
   clint.io.instruction_address_id := if2id.io.instruction_address

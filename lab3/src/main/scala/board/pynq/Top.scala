@@ -57,15 +57,15 @@ class Top extends Module {
   rom_loader.io.load_address := Parameters.EntryAddress
   instruction_rom.io.address := rom_loader.io.rom_address
 
-  val CPU_clkdiv = RegInit(UInt(2.W),0.U)
+  val CPU_clkdiv = RegInit(UInt(3.W),0.U)
   val CPU_tick = Wire(Bool())
-  val CPU_next = Wire(UInt(2.W))
-  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
+  val CPU_next = Wire(UInt(3.W))
+  CPU_next := Mux(CPU_clkdiv === 7.U, 0.U, CPU_clkdiv + 1.U)
   CPU_tick := CPU_clkdiv === 0.U
   CPU_clkdiv := CPU_next
 
   withClock(CPU_tick.asClock) {
-    val cpu = Module(new CPU(implementation = ImplementationType.ThreeStage))
+    val cpu = Module(new CPU(implementation = ImplementationType.FiveStage2))
     val instruction_valid = RegNext(rom_loader.io.load_finished)
     cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
     cpu.io.debug_read_address := 0.U

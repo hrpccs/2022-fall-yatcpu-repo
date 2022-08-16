@@ -22,7 +22,7 @@ import riscv.core.{CPU, CPUBundle}
 class Top extends Module {
   val io = IO(new CPUBundle)
 
-  val cpu = Module(new CPU(implementation = ImplementationType.ThreeStage))
+  val cpu = Module(new CPU(implementation = ImplementationType.FiveStage2))
 
   io.device_select := 0.U
   cpu.io.debug_read_address := io.debug_read_address

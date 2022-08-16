@@ -30,7 +30,6 @@ class MemoryAccess extends Module {
     val csr_read_data = Input(UInt(Parameters.DataWidth))
 
     val wb_memory_read_data = Output(UInt(Parameters.DataWidth))
-    val forward_data = Output(UInt(Parameters.DataWidth))
 
     val bundle = Flipped(new RAMBundle)
   })
@@ -104,6 +103,4 @@ class MemoryAccess extends Module {
       }
     }
   }
-
-  io.forward_data := Mux(io.regs_write_source === RegWriteSource.CSR, io.csr_read_data, io.alu_result)
 }
