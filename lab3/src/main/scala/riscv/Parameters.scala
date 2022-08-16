@@ -20,6 +20,7 @@ import chisel3.util._
 object ImplementationType {
   val ThreeStage = 0
   val FiveStage = 1
+  val FiveStage3 = 3
 }
 
 object Parameters {
