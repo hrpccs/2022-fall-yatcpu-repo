@@ -15,12 +15,8 @@
 package riscv.core
 
 import chisel3._
-import chisel3.experimental.ChiselEnum
+import chisel3.util.{Cat, MuxLookup}
 import riscv.Parameters
-
-object MemoryAccessStates extends ChiselEnum {
-  val Idle, Read, Write, ReadWrite = Value
-}
 
 class Execute extends Module {
   val io = IO(new Bundle {
@@ -33,6 +29,8 @@ class Execute extends Module {
     val aluop2_source = Input(UInt(1.W))
 
     val mem_alu_result = Output(UInt(Parameters.DataWidth))
+    val if_jump_flag = Output(Bool())
+    val if_jump_address = Output(UInt(Parameters.DataWidth))
   })
 
   val opcode = io.instruction(6, 0)
@@ -59,4 +57,19 @@ class Execute extends Module {
     io.reg2_data,
   )
   io.mem_alu_result := alu.io.result
+  io.if_jump_flag := opcode === Instructions.jal ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B) && MuxLookup(
+      funct3,
+      false.B,
+      IndexedSeq(
+        InstructionsTypeB.beq -> (io.reg1_data === io.reg2_data),
+        InstructionsTypeB.bne -> (io.reg1_data =/= io.reg2_data),
+        InstructionsTypeB.blt -> (io.reg1_data.asSInt < io.reg2_data.asSInt),
+        InstructionsTypeB.bge -> (io.reg1_data.asSInt >= io.reg2_data.asSInt),
+        InstructionsTypeB.bltu -> (io.reg1_data.asUInt < io.reg2_data.asUInt),
+        InstructionsTypeB.bgeu -> (io.reg1_data.asUInt >= io.reg2_data.asUInt)
+      )
+    )
+  io.if_jump_address := io.immediate + Mux(opcode === Instructions.jalr, io.reg1_data, io.instruction_address)
 }

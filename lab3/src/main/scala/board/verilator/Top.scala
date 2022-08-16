@@ -17,8 +17,8 @@ package board.verilator
 import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import peripheral._
-import riscv.core.CPU
 import riscv.{ImplementationType, Parameters}
+import riscv.core.CPU
 
 class Top extends Module {
   val io = IO(new Bundle() {

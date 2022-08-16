@@ -33,7 +33,7 @@ class Top extends Module {
   io.instruction_address := cpu.io.instruction_address
   cpu.io.instruction := io.instruction
 
-
+  cpu.io.instruction_valid := io.instruction_valid
 
 }
 

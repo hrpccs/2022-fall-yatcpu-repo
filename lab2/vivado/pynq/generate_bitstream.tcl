@@ -14,6 +14,7 @@
 
 source open_project.tcl
 set_param general.maxThreads 16
+set_param pwropt.maxFaninFanoutToNetRatio 5000
 
 while 1 {
     if { [catch {launch_runs synth_1 -jobs 16 } ] } {

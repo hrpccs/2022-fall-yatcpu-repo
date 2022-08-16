@@ -25,11 +25,11 @@ reg clock;
 reg reset;
 initial begin
 clock = 0;
-forever #1 clock = ~clock;
+forever #100 clock = ~clock;
 end
 initial begin
 reset = 1;
-#2 reset = 0;
+#200 reset = 0;
 end
 Top top(clock, reset);
 endmodule

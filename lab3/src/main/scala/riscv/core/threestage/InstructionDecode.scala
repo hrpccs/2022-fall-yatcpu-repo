@@ -18,8 +18,7 @@ import chisel3._
 import chisel3.util._
 import riscv.Parameters
 
-
-object InstructionTypes  {
+object InstructionTypes {
   val L = "b0000011".U
   val I = "b0010011".U
   val S = "b0100011".U
@@ -27,7 +26,7 @@ object InstructionTypes  {
   val B = "b1100011".U
 }
 
-object Instructions  {
+object Instructions {
   val lui = "b0110111".U
   val nop = "b0000001".U
   val jal = "b1101111".U
@@ -37,7 +36,7 @@ object Instructions  {
   val fence = "b0001111".U
 }
 
-object InstructionsTypeL  {
+object InstructionsTypeL {
   val lb = "b000".U
   val lh = "b001".U
   val lw = "b010".U
@@ -56,13 +55,13 @@ object InstructionsTypeI {
   val andi = 7.U
 }
 
-object InstructionsTypeS  {
+object InstructionsTypeS {
   val sb = "b000".U
   val sh = "b001".U
   val sw = "b010".U
 }
 
-object InstructionsTypeR  {
+object InstructionsTypeR {
   val add_sub = 0.U
   val sll = 1.U
   val slt = 2.U
@@ -73,7 +72,7 @@ object InstructionsTypeR  {
   val and = 7.U
 }
 
-object InstructionsTypeM  {
+object InstructionsTypeM {
   val mul = 0.U
   val mulh = 1.U
   val mulhsu = 2.U
@@ -84,7 +83,7 @@ object InstructionsTypeM  {
   val remu = 7.U
 }
 
-object InstructionsTypeB  {
+object InstructionsTypeB {
   val beq = "b000".U
   val bne = "b001".U
   val blt = "b100".U
@@ -93,7 +92,7 @@ object InstructionsTypeB  {
   val bgeu = "b111".U
 }
 
-object InstructionsTypeCSR  {
+object InstructionsTypeCSR {
   val csrrw = "b001".U
   val csrrs = "b010".U
   val csrrc = "b011".U
@@ -116,36 +115,39 @@ object InstructionsEnv {
   val ebreak = 0x00100073L.U(Parameters.DataWidth)
 }
 
+object ALUOp1Source {
+  val Register = 0.U(1.W)
+  val InstructionAddress = 1.U(1.W)
+}
+
+object ALUOp2Source {
+  val Register = 0.U(1.W)
+  val Immediate = 1.U(1.W)
+}
+
+object RegWriteSource {
+  val ALUResult = 0.U(2.W)
+  val Memory = 1.U(2.W)
+  val CSR = 2.U(2.W)
+  val NextInstructionAddress = 3.U(2.W)
+}
+
 class InstructionDecode extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
-    val instruction_address = Input(UInt(Parameters.AddrWidth))
-    val reg1_data = Input(UInt(Parameters.DataWidth))
-    val reg2_data = Input(UInt(Parameters.DataWidth))
-
-    val csr_read_data = Input(UInt(Parameters.DataWidth))
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-
-//    val ctrl_stall_flag = Output(UInt(Parameters.StallStateWidth))
-
-    val ex_op1 = Output(UInt(Parameters.DataWidth))
-    val ex_op2 = Output(UInt(Parameters.DataWidth))
-    val ex_op1_jump = Output(UInt(Parameters.DataWidth))
-    val ex_op2_jump = Output(UInt(Parameters.DataWidth))
-    val ex_instruction = Output(UInt(Parameters.DataWidth))
-    val ex_instruction_address = Output(UInt(Parameters.AddrWidth))
-    val ex_reg1_data = Output(UInt(Parameters.DataWidth))
-    val ex_reg2_data = Output(UInt(Parameters.DataWidth))
+    val ex_immediate = Output(UInt(Parameters.DataWidth))
+    val ex_aluop1_source = Output(Bool())
+    val ex_aluop2_source = Output(Bool())
+    val ex_memory_read_enable = Output(Bool())
+    val ex_memory_write_enable = Output(Bool())
+    val ex_reg_write_source = Output(UInt(2.W))
     val ex_reg_write_enable = Output(Bool())
     val ex_reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
-
-    val csr_read_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
+    val ex_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
     val ex_csr_write_enable = Output(Bool())
-    val ex_csr_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
-    val ex_csr_write_data = Output(UInt(Parameters.DataWidth))
-    val ex_csr_read_data = Output(UInt(Parameters.DataWidth))
   })
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
@@ -154,164 +156,52 @@ class InstructionDecode extends Module {
   val rs1 = io.instruction(19, 15)
   val rs2 = io.instruction(24, 20)
 
-  def disable_regs() = {
-    disable_write()
-    io.regs_reg1_read_address := 0.U
-    io.regs_reg2_read_address := 0.U
-  }
-
-  def disable_write() = {
-    io.ex_reg_write_enable := false.B
-    io.ex_reg_write_address := 0.U
-  }
-
-  def enable_write(addr: UInt) = {
-    io.ex_reg_write_enable := true.B
-    io.ex_reg_write_address := addr
-  }
-
-  io.ex_instruction := io.instruction
-  io.ex_instruction_address := io.instruction_address
-  io.ex_reg1_data := io.reg1_data
-  io.ex_reg2_data := io.reg2_data
-  io.ex_op1 := 0.U
-  io.ex_op2 := 0.U
-  io.ex_op1_jump := 0.U
-  io.ex_op2_jump := 0.U
-//  io.ctrl_stall_flag := false.B
-  io.csr_read_address := 0.U
-  io.ex_csr_read_data := io.csr_read_data
-  io.ex_csr_write_enable := false.B
-  io.ex_csr_write_data := 0.U
-  io.ex_csr_write_address := 0.U
-
-  when(opcode === InstructionTypes.L) {
-    when(
-      funct3 === InstructionsTypeL.lb ||
-        funct3 === InstructionsTypeL.lh ||
-        funct3 === InstructionsTypeL.lw ||
-        funct3 === InstructionsTypeL.lbu ||
-        funct3 === InstructionsTypeL.lhu
-    ) {
-      enable_write(rd)
-      io.regs_reg1_read_address := rs1
-      io.regs_reg2_read_address := 0.U
-      io.ex_op1 := io.reg1_data
-      io.ex_op2 := Cat(Fill(20, io.instruction(31)), io.instruction(31, 20))
-    }.otherwise {
-      disable_regs()
-    }
-  }.elsewhen(opcode === InstructionTypes.I) {
-    enable_write(rd)
-    io.regs_reg1_read_address := rs1
-    io.regs_reg2_read_address := 0.U
-    io.ex_op1 := io.reg1_data
-    io.ex_op2 := Cat(Fill(20, io.instruction(31)), io.instruction(31, 20))
-  }.elsewhen(opcode === InstructionTypes.S) {
-    when(funct3 === InstructionsTypeS.sb ||
-      funct3 === InstructionsTypeS.sh ||
-      funct3 === InstructionsTypeS.sw) {
-      disable_write()
-      io.regs_reg1_read_address := rs1
-      io.regs_reg2_read_address := rs2
-      io.ex_op1 := io.reg1_data
-      io.ex_op2 := Cat(Fill(20, io.instruction(31)), io.instruction(31, 25), io.instruction(11, 7))
-    }.otherwise {
-      disable_regs()
-    }
-  }.elsewhen(opcode === InstructionTypes.RM) {
-    when(funct7 === 0.U || funct7 === 0x20.U) {
-      enable_write(rd)
-      io.regs_reg1_read_address := rs1
-      io.regs_reg2_read_address := rs2
-      io.ex_op1 := io.reg1_data
-      io.ex_op2 := io.reg2_data
-    }.otherwise {
-      // TODO(howard): implement mul and div
-      disable_regs()
-    }
-  }.elsewhen(opcode === InstructionTypes.B) {
-    when(
-      funct3 === InstructionsTypeB.beq ||
-        funct3 === InstructionsTypeB.bne ||
-        funct3 === InstructionsTypeB.blt ||
-        funct3 === InstructionsTypeB.bge ||
-        funct3 === InstructionsTypeB.bltu ||
-        funct3 === InstructionsTypeB.bgeu
-    ) {
-      disable_write()
-      io.regs_reg1_read_address := rs1
-      io.regs_reg2_read_address := rs2
-      io.ex_op1 := io.reg1_data
-      io.ex_op2 := io.reg2_data
-      io.ex_op1_jump := io.instruction_address
-      io.ex_op2_jump := Cat(Fill(20, io.instruction(31)), io.instruction(7), io.instruction(30, 25), io.instruction
-      (11, 8), 0.U(1.W))
-    }.otherwise {
-      disable_regs()
-    }
-  }.elsewhen(opcode === Instructions.jal) {
-    enable_write(rd)
-    io.regs_reg1_read_address := 0.U
-    io.regs_reg2_read_address := 0.U
-    io.ex_op1 := io.instruction_address
-    io.ex_op2 := 4.U
-    io.ex_op1_jump := io.instruction_address
-    io.ex_op2_jump := Cat(Fill(12, io.instruction(31)), io.instruction(19, 12), io.instruction(20), io.instruction
-    (30, 21), 0.U(1.W))
-  }.elsewhen(opcode === Instructions.jalr) {
-    enable_write(rd)
-    io.regs_reg1_read_address := rs1
-    io.regs_reg2_read_address := 0.U
-    io.ex_op1 := io.instruction_address
-    io.ex_op2 := 4.U
-    io.ex_op1_jump := io.reg1_data
-    io.ex_op2_jump := Cat(Fill(20, io.instruction(31)), io.instruction(31, 20))
-  }.elsewhen(opcode === Instructions.lui) {
-    enable_write(rd)
-    io.regs_reg1_read_address := 0.U
-    io.regs_reg2_read_address := 0.U
-    io.ex_op1 := Cat(io.instruction(31, 12), Fill(12, 0.U(1.W)))
-    io.ex_op2 := 0.U
-  }.elsewhen(opcode === Instructions.auipc) {
-    enable_write(rd)
-    io.regs_reg1_read_address := 0.U
-    io.regs_reg2_read_address := 0.U
-    io.ex_op1 := io.instruction_address
-    io.ex_op2 := Cat(io.instruction(31, 12), Fill(12, 0.U(1.W)))
-  }.elsewhen(opcode === Instructions.csr) {
-    disable_regs()
-    io.csr_read_address := Cat(0.U(20.W), io.instruction(31, 20))
-    io.ex_csr_write_address := Cat(0.U(20.W), io.instruction(31, 20))
-    when(
-      funct3 === InstructionsTypeCSR.csrrc ||
-        funct3 === InstructionsTypeCSR.csrrs ||
-        funct3 === InstructionsTypeCSR.csrrw
-    ) {
-      io.regs_reg1_read_address := rs1
-      io.regs_reg2_read_address := 0.U
-      io.ex_reg_write_enable := true.B
-      io.ex_reg_write_address := rd
-      io.ex_csr_write_enable := true.B
-    }.elsewhen(
-      funct3 === InstructionsTypeCSR.csrrci ||
-        funct3 === InstructionsTypeCSR.csrrsi ||
-        funct3 === InstructionsTypeCSR.csrrwi
-    ) {
-      io.regs_reg1_read_address := 0.U
-      io.regs_reg2_read_address := 0.U
-      io.ex_reg_write_enable := true.B
-      io.ex_reg_write_address := rd
-      io.ex_csr_write_enable := true.B
-    }.otherwise {
-      io.ex_csr_write_enable := false.B
-      io.ex_csr_write_data := 0.U
-      io.ex_csr_write_address := 0.U
-    }
-  }.elsewhen(opcode === Instructions.nop) {
-    disable_regs()
-  }.otherwise {
-    disable_regs()
-  }
-
+  io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
+  io.regs_reg2_read_address := rs2
+  io.ex_immediate := MuxLookup(
+    opcode,
+    Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),
+    IndexedSeq(
+      InstructionTypes.I -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
+      InstructionTypes.L -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
+      Instructions.jalr -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 20)),
+      InstructionTypes.S -> Cat(Fill(21, io.instruction(31)), io.instruction(30, 25), io.instruction(11, 7)),
+      InstructionTypes.B -> Cat(Fill(20, io.instruction(31)), io.instruction(7), io.instruction(30, 25), io.instruction(11, 8), 0.U(1.W)),
+      Instructions.lui -> Cat(io.instruction(31, 12), 0.U(12.W)),
+      Instructions.auipc -> Cat(io.instruction(31, 12), 0.U(12.W)),
+      Instructions.jal -> Cat(Fill(12, io.instruction(31)), io.instruction(19, 12), io.instruction(20), io.instruction(30, 21), 0.U(1.W))
+    )
+  )
+  io.ex_aluop1_source := Mux(
+    opcode === Instructions.auipc || opcode === InstructionTypes.B || opcode === Instructions.jal,
+    ALUOp1Source.InstructionAddress,
+    ALUOp1Source.Register
+  )
+  io.ex_aluop2_source := Mux(
+    opcode === InstructionTypes.RM,
+    ALUOp2Source.Register,
+    ALUOp2Source.Immediate
+  )
+  io.ex_memory_read_enable := opcode === InstructionTypes.L
+  io.ex_memory_write_enable := opcode === InstructionTypes.S
+  io.ex_reg_write_source := MuxLookup(
+    opcode,
+    RegWriteSource.ALUResult,
+    IndexedSeq(
+      InstructionTypes.L -> RegWriteSource.Memory,
+      Instructions.csr -> RegWriteSource.CSR,
+      Instructions.jal -> RegWriteSource.NextInstructionAddress,
+      Instructions.jalr -> RegWriteSource.NextInstructionAddress
+    )
+  )
+  io.ex_reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
+    (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
+    (opcode === Instructions.jal) || (opcode === Instructions.jalr) || (opcode === Instructions.csr)
+  io.ex_reg_write_address := io.instruction(11, 7)
+  io.ex_csr_address := io.instruction(31, 20)
+  io.ex_csr_write_enable := (opcode === Instructions.csr) && (
+    funct3 === InstructionsTypeCSR.csrrw || funct3 === InstructionsTypeCSR.csrrwi ||
+      funct3 === InstructionsTypeCSR.csrrs || funct3 === InstructionsTypeCSR.csrrsi ||
+      funct3 === InstructionsTypeCSR.csrrc || funct3 === InstructionsTypeCSR.csrrci
+    )
 }

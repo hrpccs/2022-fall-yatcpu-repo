@@ -124,6 +124,7 @@ void handle_timer() {
 		if (fast == 0) {
 			*TIMER_LIMIT = 25000000;
 		} else {
+		
 			*TIMER_LIMIT = 100000000;
 		}
 		fast = mode;

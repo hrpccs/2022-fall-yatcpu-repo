@@ -15,54 +15,42 @@
 package riscv.core.threestage
 
 import chisel3._
-import chisel3.experimental.ChiselEnum
 import chisel3.util._
-import peripheral.RAMBundle
+import peripheral.{RAMBundle, RamAccessBundle}
 import riscv.Parameters
-
-object MemoryAccessStates extends ChiselEnum {
-  val Idle, Read, Write, ReadWrite = Value
-}
 
 class Execute extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
-    val interrupt_assert = Input(Bool())
-    val interrupt_handler_address = Input(UInt(Parameters.AddrWidth))
-    val regs_write_enable_id = Input(Bool())
-    val regs_write_address_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
-    val csr_reg_write_enable_id = Input(Bool())
-    val csr_reg_write_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))
-    val csr_reg_data_id = Input(UInt(Parameters.DataWidth))
     val reg1_data = Input(UInt(Parameters.DataWidth))
     val reg2_data = Input(UInt(Parameters.DataWidth))
-    val op1 = Input(UInt(Parameters.DataWidth))
-    val op2 = Input(UInt(Parameters.DataWidth))
-    val op1_jump = Input(UInt(Parameters.DataWidth))
-    val op2_jump = Input(UInt(Parameters.DataWidth))
+    val immediate_id = Input(UInt(Parameters.DataWidth))
+    val aluop1_source_id = Input(UInt(1.W))
+    val aluop2_source_id = Input(UInt(1.W))
+    val csr_read_data_id = Input(UInt(Parameters.DataWidth))
+    val memory_read_enable_id = Input(Bool())
+    val memory_write_enable_id = Input(Bool())
+    val regs_write_source_id = Input(UInt(2.W))
+    val interrupt_assert_clint = Input(Bool())
+    val interrupt_handler_address_clint = Input(UInt(Parameters.AddrWidth))
 
-    val memory_bundle = Flipped(new RAMBundle)
+    val memory_bundle = new RamAccessBundle
 
-    val regs_write_enable = Output(Bool())
-    val regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val csr_write_data = Output(UInt(Parameters.DataWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
-
-    //    val ctrl_stall_flag = Output(Bool())
-    val ctrl_jump_flag = Output(Bool())
-    val ctrl_jump_address = Output(UInt(Parameters.AddrWidth))
-
-    val csr_reg_write_enable = Output(Bool())
-    val csr_reg_write_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
-    val csr_reg_write_data = Output(UInt(Parameters.DataWidth))
+    val if_jump_flag = Output(Bool())
+    val if_jump_address = Output(UInt(Parameters.AddrWidth))
+    val clint_jump_flag = Output(Bool())
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
   })
 
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
   val funct7 = io.instruction(31, 25)
-  val rd = io.instruction(11, 7)
   val uimm = io.instruction(19, 15)
 
+  // ALU compute
   val alu = Module(new ALU)
   val alu_ctrl = Module(new ALUControl)
 
@@ -70,69 +58,37 @@ class Execute extends Module {
   alu_ctrl.io.funct3 := funct3
   alu_ctrl.io.funct7 := funct7
   alu.io.func := alu_ctrl.io.alu_funct
-  alu.io.op1 := io.op1
-  alu.io.op2 := io.op2
 
+  alu.io.op1 := Mux(
+    io.aluop1_source_id === ALUOp1Source.InstructionAddress,
+    io.instruction_address,
+    io.reg1_data
+  )
 
-  val mem_read_address_index = (io.op1 + io.op2) (log2Up(Parameters.WordSize) - 1, 0).asUInt
-  val mem_write_address_index = (io.op1 + io.op2) (log2Up(Parameters.WordSize) - 1, 0).asUInt
-  val pending_interrupt = RegInit(false.B)
-  val pending_interrupt_handler_address = RegInit(Parameters.EntryAddress)
+  alu.io.op2 := Mux(
+    io.aluop2_source_id === ALUOp2Source.Immediate,
+    io.immediate_id,
+    io.reg2_data
+  )
 
-  val jump_flag = Wire(Bool())
-  val jump_address = Wire(UInt(Parameters.AddrWidth))
+  // memory access
+  val mem_address_index = alu.io.result(log2Up(Parameters.WordSize) - 1, 0).asUInt
+  val memory_read_data = Wire(UInt(Parameters.DataWidth))
 
-  io.ctrl_jump_flag := jump_flag || io.interrupt_assert
-  io.ctrl_jump_address := Mux(io.interrupt_assert, io.interrupt_handler_address, jump_address)
-
-
-  io.regs_write_enable := io.regs_write_enable_id && !io.interrupt_assert
-  io.regs_write_address := io.regs_write_address_id
-  io.regs_write_data := 0.U
-  io.csr_reg_write_enable := io.csr_reg_write_enable_id && !io.interrupt_assert
-  io.csr_reg_write_address := io.csr_reg_write_address_id
-  io.csr_reg_write_data := 0.U
-
-  io.memory_bundle.address := 0.U
-  io.memory_bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
-  io.memory_bundle.write_enable := false.B
+  memory_read_data := 0.U
+  io.memory_bundle.write_enable := io.memory_write_enable_id
   io.memory_bundle.write_data := 0.U
+  io.memory_bundle.address := alu.io.result
+  io.memory_bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
 
-  jump_flag := false.B
-  jump_address := 0.U
-
-  // no bus , no need to wait
-
-  when(opcode === InstructionTypes.I) {
-    val mask = (0xFFFFFFFFL.U >> io.instruction(24, 20)).asUInt
-    io.regs_write_data := alu.io.result
-    when(funct3 === InstructionsTypeI.sri) {
-      when(funct7(5).asBool) {
-        io.regs_write_data := alu.io.result & mask |
-          (Fill(32, io.op1(31)) & (~mask).asUInt).asUInt
-      }
-    }
-  }.elsewhen(opcode === InstructionTypes.RM) {
-    when(funct7 === 0.U || funct7 === 0x20.U) {
-      val mask = (0xFFFFFFFFL.U >> io.reg2_data(4, 0)).asUInt
-      io.regs_write_data := alu.io.result
-      when(funct3 === InstructionsTypeR.sr) {
-        when(funct7(5).asBool()) {
-          io.regs_write_data := alu.io.result & mask |
-            (Fill(32, io.op1(31)) & (~mask).asUInt).asUInt
-        }
-      }
-    }
-  }.elsewhen(opcode === InstructionTypes.L) {
-    io.memory_bundle.address := io.op1 + io.op2
-    io.regs_write_enable := true.B
+  when(io.memory_read_enable_id) {
     val data = io.memory_bundle.read_data
-    io.regs_write_data := MuxLookup(
+    memory_read_data := MuxLookup(
       funct3,
       0.U,
       IndexedSeq(
         InstructionsTypeL.lb -> MuxLookup(
-          mem_read_address_index,
+          mem_address_index,
           Cat(Fill(24, data(31)), data(31, 24)),
           IndexedSeq(
             0.U -> Cat(Fill(24, data(7)), data(7, 0)),
@@ -141,7 +97,7 @@ class Execute extends Module {
           )
         ),
         InstructionsTypeL.lbu -> MuxLookup(
-          mem_read_address_index,
+          mem_address_index,
           Cat(Fill(24, 0.U), data(31, 24)),
           IndexedSeq(
             0.U -> Cat(Fill(24, 0.U), data(7, 0)),
@@ -150,29 +106,26 @@ class Execute extends Module {
           )
         ),
         InstructionsTypeL.lh -> Mux(
-          mem_read_address_index === 0.U,
+          mem_address_index === 0.U,
           Cat(Fill(16, data(15)), data(15, 0)),
           Cat(Fill(16, data(31)), data(31, 16))
         ),
         InstructionsTypeL.lhu -> Mux(
-          mem_read_address_index === 0.U,
+          mem_address_index === 0.U,
           Cat(Fill(16, 0.U), data(15, 0)),
           Cat(Fill(16, 0.U), data(31, 16))
         ),
         InstructionsTypeL.lw -> data
       )
     )
-  }.elsewhen(opcode === InstructionTypes.S) {
-    io.memory_bundle.address := io.op1 + io.op2
+  }.elsewhen(io.memory_write_enable_id) {
     io.memory_bundle.write_data := io.reg2_data
-    io.memory_bundle.write_enable := true.B
     io.memory_bundle.write_strobe := VecInit(Seq.fill(Parameters.WordSize)(false.B))
     when(funct3 === InstructionsTypeS.sb) {
-      io.memory_bundle.write_strobe(mem_write_address_index) := true.B
-      io.memory_bundle.write_data := io.reg2_data(Parameters.ByteBits, 0) << (mem_write_address_index << log2Up(Parameters
-        .ByteBits).U)
+      io.memory_bundle.write_strobe(mem_address_index) := true.B
+      io.memory_bundle.write_data := io.reg2_data(Parameters.ByteBits, 0) << (mem_address_index << log2Up(Parameters.ByteBits).U)
     }.elsewhen(funct3 === InstructionsTypeS.sh) {
-      when(mem_write_address_index === 0.U) {
+      when(mem_address_index === 0.U) {
         for (i <- 0 until Parameters.WordSize / 2) {
           io.memory_bundle.write_strobe(i) := true.B
         }
@@ -189,45 +142,48 @@ class Execute extends Module {
         io.memory_bundle.write_strobe(i) := true.B
       }
     }
-  }.elsewhen(opcode === InstructionTypes.B) {
-    jump_flag := MuxLookup(
+  }
+
+  // write back
+  io.regs_write_data := MuxLookup(
+    io.regs_write_source_id,
+    alu.io.result,
+    IndexedSeq(
+      RegWriteSource.Memory -> memory_read_data,
+      RegWriteSource.CSR -> io.csr_read_data_id,
+      RegWriteSource.NextInstructionAddress -> (io.instruction_address + 4.U)
+    )
+  )
+
+  io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
+    InstructionsTypeCSR.csrrw -> io.reg1_data,
+    InstructionsTypeCSR.csrrc -> io.csr_read_data_id.&((~io.reg1_data).asUInt),
+    InstructionsTypeCSR.csrrs -> io.csr_read_data_id.|(io.reg1_data),
+    InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
+    InstructionsTypeCSR.csrrci -> io.csr_read_data_id.&((~Cat(0.U(27.W), uimm)).asUInt),
+    InstructionsTypeCSR.csrrsi -> io.csr_read_data_id.|(Cat(0.U(27.W), uimm)),
+  ))
+
+  // jump and interrupt
+  val instruction_jump_flag = (opcode === Instructions.jal) ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B) && MuxLookup(
       funct3,
-      0.U,
+      false.B,
       IndexedSeq(
-        InstructionsTypeB.beq -> (io.op1 === io.op2),
-        InstructionsTypeB.bne -> (io.op1 =/= io.op2),
-        InstructionsTypeB.bltu -> (io.op1 < io.op2),
-        InstructionsTypeB.bgeu -> (io.op1 >= io.op2),
-        InstructionsTypeB.blt -> (io.op1.asSInt() < io.op2.asSInt()),
-        InstructionsTypeB.bge -> (io.op1.asSInt() >= io.op2.asSInt())
+        InstructionsTypeB.beq -> (io.reg1_data === io.reg2_data),
+        InstructionsTypeB.bne -> (io.reg1_data =/= io.reg2_data),
+        InstructionsTypeB.blt -> (io.reg1_data.asSInt < io.reg2_data.asSInt),
+        InstructionsTypeB.bge -> (io.reg1_data.asSInt >= io.reg2_data.asSInt),
+        InstructionsTypeB.bltu -> (io.reg1_data.asUInt < io.reg2_data.asUInt),
+        InstructionsTypeB.bgeu -> (io.reg1_data.asUInt >= io.reg2_data.asUInt)
       )
     )
-    jump_address := Fill(32, io.ctrl_jump_flag) & (io.op1_jump + io.op2_jump)
-  }.elsewhen(opcode === Instructions.jal || opcode === Instructions.jalr) {
-//    disable_stall()
-    jump_flag := true.B
-    jump_address := io.op1_jump + io.op2_jump
-    io.regs_write_data := io.op1 + io.op2
-  }.elsewhen(opcode === Instructions.lui || opcode === Instructions.auipc) {
-    io.regs_write_data := io.op1 + io.op2
-  }.elsewhen(opcode === Instructions.csr) {
-    io.csr_reg_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
-      InstructionsTypeCSR.csrrw -> io.reg1_data,
-      InstructionsTypeCSR.csrrc -> io.csr_reg_data_id.&((~io.reg1_data).asUInt),
-      InstructionsTypeCSR.csrrs -> io.csr_reg_data_id.|(io.reg1_data),
-      InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
-      InstructionsTypeCSR.csrrci -> io.csr_reg_data_id.&((~Cat(0.U(27.W), uimm)).asUInt),
-      InstructionsTypeCSR.csrrsi -> io.csr_reg_data_id.|(Cat(0.U(27.W), uimm)),
-    ))
-    io.regs_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
-      InstructionsTypeCSR.csrrw -> io.csr_reg_data_id,
-      InstructionsTypeCSR.csrrc -> io.csr_reg_data_id,
-      InstructionsTypeCSR.csrrs -> io.csr_reg_data_id,
-      InstructionsTypeCSR.csrrwi -> io.csr_reg_data_id,
-      InstructionsTypeCSR.csrrci -> io.csr_reg_data_id,
-      InstructionsTypeCSR.csrrsi -> io.csr_reg_data_id,
-    ))
-  }.otherwise {
-    io.regs_write_data := 0.U
-  }
+  io.clint_jump_flag := instruction_jump_flag
+  io.clint_jump_address := alu.io.result
+  io.if_jump_flag := io.interrupt_assert_clint || instruction_jump_flag
+  io.if_jump_address := Mux(io.interrupt_assert_clint,
+    io.interrupt_handler_address_clint,
+    alu.io.result
+  )
 }

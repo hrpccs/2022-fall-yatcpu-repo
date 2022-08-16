@@ -19,19 +19,17 @@ import riscv.Parameters
 
 class IF2ID extends Module {
   val io = IO(new Bundle {
+    val jump_flag = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
-    val stall_flag = Input(UInt(Parameters.StallStateWidth))
     val interrupt_flag = Input(UInt(Parameters.InterruptFlagWidth))
-    val jump_flag = Input(Bool())
 
     val output_instruction = Output(UInt(Parameters.DataWidth))
     val output_instruction_address = Output(UInt(Parameters.AddrWidth))
     val output_interrupt_flag = Output(UInt(Parameters.InterruptFlagWidth))
   })
 
-//  val write_enable = io.stall_flag < StallStates.IF
-  val write_enable = !io.stall_flag
+  val write_enable = !io.jump_flag
   val flush_enable = io.jump_flag
 
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))

@@ -21,7 +21,7 @@ import riscv.TestAnnotations
 import riscv.core.threestage.RegisterFile
 
 class RegisterFileTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "Register File"
+  behavior of "Register File of Single Cycle CPU"
   it should "read the written content" in {
     test(new RegisterFile).withAnnotations(TestAnnotations.annos) { c =>
       timescope {
@@ -56,6 +56,7 @@ class RegisterFileTest extends AnyFlatSpec with ChiselScalatestTester {
         c.io.write_enable.poke(true.B)
         c.io.write_address.poke(2.U)
         c.io.write_data.poke(0xDEADBEEFL.U)
+        c.clock.step()
         c.io.read_address1.poke(2.U)
         c.io.read_data1.expect(0xDEADBEEFL.U)
         c.clock.step()

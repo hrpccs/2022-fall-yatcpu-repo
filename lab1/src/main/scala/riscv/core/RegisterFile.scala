@@ -15,7 +15,6 @@
 package riscv.core
 
 import chisel3._
-import chisel3.util._
 import riscv.Parameters
 
 object Registers extends Enumeration {
@@ -43,9 +42,9 @@ class RegisterFile extends Module {
     val debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val debug_read_data = Output(UInt(Parameters.DataWidth))
   })
-  val registers = Reg(Vec(Parameters.PhysicalRegisters, UInt(Parameters.DataWidth)))
+  val registers = RegInit(VecInit(Seq.fill(Parameters.PhysicalRegisters)(0.U(Parameters.DataWidth))))
 
-  when(!reset.asBool()) {
+  when(!reset.asBool) {
     when(io.write_enable && io.write_address =/= 0.U) {
       registers(io.write_address) := io.write_data
     }
@@ -68,28 +67,4 @@ class RegisterFile extends Module {
     0.U,
     registers(io.debug_read_address)
   )
-//  io.read_data1 := MuxCase(
-//    registers(io.read_address1),
-//    IndexedSeq(
-//      (io.read_address1 === 0.U) -> 0.U,
-//      (io.read_address1 === io.write_address && io.write_enable) -> io.write_data
-//    )
-//  )
-//
-//  io.read_data2 := MuxCase(
-//    registers(io.read_address2),
-//    IndexedSeq(
-//      (io.read_address2 === 0.U) -> 0.U,
-//      (io.read_address2 === io.write_address && io.write_enable) -> io.write_data
-//    )
-//  )
-//
-//  io.debug_read_data := MuxCase(
-//    registers(io.debug_read_address),
-//    IndexedSeq(
-//      (io.debug_read_address === 0.U) -> 0.U,
-//      (io.debug_read_address === io.write_address && io.write_enable) -> io.write_data
-//    )
-//  )
-
 }

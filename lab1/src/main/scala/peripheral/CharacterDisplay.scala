@@ -48,7 +48,7 @@ class CharacterDisplay extends Module {
     val rgb = Output(UInt(24.W))
   })
 
-  val mem = Module(new SyncBlockRAM(CharacterBufferInfo.Chars / Parameters.WordSize))
+  val mem = Module(new BlockRAM(CharacterBufferInfo.Chars / Parameters.WordSize))
   mem.io.write_enable := io.bundle.write_enable
   mem.io.write_data := io.bundle.write_data
   mem.io.write_address := io.bundle.address

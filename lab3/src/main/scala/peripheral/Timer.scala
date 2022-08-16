@@ -35,13 +35,13 @@ class Timer extends Module {
 
   io.bundle.read_data := 0.U
   io.bundle.read_data := MuxLookup(
-      io.bundle.address,
-      0.U,
-      IndexedSeq(
-        0x4.U -> limit,
-        0x8.U -> enabled.asUInt,
-      )
+    io.bundle.address,
+    0.U,
+    IndexedSeq(
+      0x4.U -> limit,
+      0x8.U -> enabled.asUInt,
     )
+  )
   when(io.bundle.write_enable) {
     when(io.bundle.address === 0x4.U) {
       limit := io.bundle.write_data

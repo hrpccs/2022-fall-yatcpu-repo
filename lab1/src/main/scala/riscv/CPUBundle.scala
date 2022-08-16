@@ -21,6 +21,7 @@ class CPUBundle extends Bundle {
   val instruction_address = Output(UInt(Parameters.AddrWidth))
   val instruction = Input(UInt(Parameters.DataWidth))
   val memory_bundle = Flipped(new RAMBundle)
+  val instruction_valid = Input(Bool())
   val deviceSelect = Output(UInt(Parameters.SlaveDeviceCountBits.W))
   val debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
   val debug_read_data = Output(UInt(Parameters.DataWidth))

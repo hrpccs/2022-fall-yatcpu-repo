@@ -44,4 +44,12 @@ program-pynq: bitstream-pynq
 vivado-sim-pynq: pynq
 	cd vivado/pynq && vivado -mode batch -source run_simulation.tcl
 
+arch-test: verilator
+	cp -r ../lab3 ~ && \
+	cd ~/riscv-arch-test && \
+	export TARGET_SIM=~/lab3/verilog/verilator/obj_dir/VTop && \
+	export TARGETDIR=~/lab3/riscv-target && \
+	export RISCV_TARGET=yatcpu && \
+    make
+
 .PHONY: basys3 verilator test bitstream program verilator-sim vivado-sim
