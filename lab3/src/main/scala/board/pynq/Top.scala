@@ -57,10 +57,10 @@ class Top extends Module {
   rom_loader.io.load_address := Parameters.EntryAddress
   instruction_rom.io.address := rom_loader.io.rom_address
 
-  val CPU_clkdiv = RegInit(UInt(4.W),0.U)
+  val CPU_clkdiv = RegInit(UInt(2.W),0.U)
   val CPU_tick = Wire(Bool())
-  val CPU_next = Wire(UInt(4.W))
-  CPU_next := Mux(CPU_clkdiv === 15.U, 0.U, CPU_clkdiv + 1.U)
+  val CPU_next = Wire(UInt(2.W))
+  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
   CPU_tick := CPU_clkdiv === 0.U
   CPU_clkdiv := CPU_next
 

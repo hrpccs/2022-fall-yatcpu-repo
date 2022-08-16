@@ -26,18 +26,24 @@ class Execute extends Module {
     val instruction_address = Input(UInt(Parameters.AddrWidth))
     val reg1_data = Input(UInt(Parameters.DataWidth))
     val reg2_data = Input(UInt(Parameters.DataWidth))
-    val immediate = Input(UInt(Parameters.DataWidth))
-    val aluop1_source = Input(UInt(1.W))
-    val aluop2_source = Input(UInt(1.W))
-    val csr_read_data = Input(UInt(Parameters.DataWidth))
+    val immediate_id = Input(UInt(Parameters.DataWidth))
+    val aluop1_source_id = Input(UInt(1.W))
+    val aluop2_source_id = Input(UInt(1.W))
+    val csr_read_data_id = Input(UInt(Parameters.DataWidth))
     val forward_from_mem = Input(UInt(Parameters.DataWidth))
     val forward_from_wb = Input(UInt(Parameters.DataWidth))
     val reg1_forward = Input(UInt(2.W))
     val reg2_forward = Input(UInt(2.W))
+    val interrupt_assert_clint = Input(Bool())
+    val interrupt_handler_address_clint = Input(UInt(Parameters.AddrWidth))
 
     val mem_alu_result = Output(UInt(Parameters.DataWidth))
     val mem_reg2_data = Output(UInt(Parameters.DataWidth))
     val csr_write_data = Output(UInt(Parameters.DataWidth))
+    val if_jump_flag = Output(Bool())
+    val if_jump_address = Output(UInt(Parameters.AddrWidth))
+    val clint_jump_flag = Output(Bool())
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
   })
 
   val opcode = io.instruction(6, 0)
@@ -45,6 +51,7 @@ class Execute extends Module {
   val funct7 = io.instruction(31, 25)
   val uimm = io.instruction(19, 15)
 
+  // ALU compute
   val alu = Module(new ALU)
   val alu_ctrl = Module(new ALUControl)
 
@@ -62,7 +69,7 @@ class Execute extends Module {
     )
   )
   alu.io.op1 := Mux(
-    io.aluop1_source === ALUOp1Source.InstructionAddress,
+    io.aluop1_source_id === ALUOp1Source.InstructionAddress,
     io.instruction_address,
     reg1_data
   )
@@ -76,18 +83,41 @@ class Execute extends Module {
     )
   )
   alu.io.op2 := Mux(
-    io.aluop2_source === ALUOp2Source.Immediate,
-    io.immediate,
+    io.aluop2_source_id === ALUOp2Source.Immediate,
+    io.immediate_id,
     reg2_data
   )
   io.mem_alu_result := alu.io.result
   io.mem_reg2_data := reg2_data
   io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
     InstructionsTypeCSR.csrrw -> reg1_data,
-    InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~reg1_data).asUInt),
-    InstructionsTypeCSR.csrrs -> io.csr_read_data.|(reg1_data),
+    InstructionsTypeCSR.csrrc -> io.csr_read_data_id.&((~reg1_data).asUInt),
+    InstructionsTypeCSR.csrrs -> io.csr_read_data_id.|(reg1_data),
     InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
-    InstructionsTypeCSR.csrrci -> io.csr_read_data.&((~Cat(0.U(27.W), uimm)).asUInt),
-    InstructionsTypeCSR.csrrsi -> io.csr_read_data.|(Cat(0.U(27.W), uimm)),
+    InstructionsTypeCSR.csrrci -> io.csr_read_data_id.&((~Cat(0.U(27.W), uimm)).asUInt),
+    InstructionsTypeCSR.csrrsi -> io.csr_read_data_id.|(Cat(0.U(27.W), uimm)),
   ))
+
+  // jump and interrupt
+  val instruction_jump_flag = (opcode === Instructions.jal) ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B) && MuxLookup(
+      funct3,
+      false.B,
+      IndexedSeq(
+        InstructionsTypeB.beq -> (reg1_data === reg2_data),
+        InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
+        InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
+        InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
+        InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
+        InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
+      )
+    )
+  io.clint_jump_flag := instruction_jump_flag
+  io.clint_jump_address := alu.io.result
+  io.if_jump_flag := io.interrupt_assert_clint || instruction_jump_flag
+  io.if_jump_address := Mux(io.interrupt_assert_clint,
+    io.interrupt_handler_address_clint,
+    alu.io.result
+  )
 }

@@ -36,8 +36,7 @@ class CPU extends Module {
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
 
-  ctrl.io.jump_flag := id.io.if_jump_flag
-  ctrl.io.jump_instruction_id := id.io.ctrl_jump_instruction
+  ctrl.io.jump_flag := ex.io.if_jump_flag
   ctrl.io.rs1_id := id.io.regs_reg1_read_address
   ctrl.io.rs2_id := id.io.regs_reg2_read_address
   ctrl.io.memory_read_enable_ex := id2ex.io.output_memory_read_enable
@@ -56,8 +55,8 @@ class CPU extends Module {
 
   io.instruction_address := inst_fetch.io.instruction_address
   inst_fetch.io.stall_flag_ctrl := ctrl.io.pc_stall
-  inst_fetch.io.jump_flag_id := id.io.if_jump_flag
-  inst_fetch.io.jump_address_id := id.io.if_jump_address
+  inst_fetch.io.jump_flag_id := ex.io.if_jump_flag
+  inst_fetch.io.jump_address_id := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
   inst_fetch.io.instruction_valid := io.instruction_valid
 
@@ -68,15 +67,6 @@ class CPU extends Module {
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
-  id.io.instruction_address := if2id.io.output_instruction_address
-  id.io.reg1_data := regs.io.read_data1
-  id.io.reg2_data := regs.io.read_data2
-  id.io.forward_from_mem := mem.io.forward_data
-  id.io.forward_from_wb := wb.io.regs_write_data
-  id.io.reg1_forward := forwarding.io.reg1_forward_id
-  id.io.reg2_forward := forwarding.io.reg2_forward_id
-  id.io.interrupt_assert := clint.io.id_interrupt_assert
-  id.io.interrupt_handler_address := clint.io.id_interrupt_handler_address
 
   id2ex.io.flush := ctrl.io.id_flush
   id2ex.io.instruction := if2id.io.output_instruction
@@ -101,14 +91,16 @@ class CPU extends Module {
   ex.io.instruction_address := id2ex.io.output_instruction_address
   ex.io.reg1_data := id2ex.io.output_reg1_data
   ex.io.reg2_data := id2ex.io.output_reg2_data
-  ex.io.immediate := id2ex.io.output_immediate
-  ex.io.aluop1_source := id2ex.io.output_aluop1_source
-  ex.io.aluop2_source := id2ex.io.output_aluop2_source
-  ex.io.csr_read_data := id2ex.io.output_csr_read_data
+  ex.io.immediate_id := id2ex.io.output_immediate
+  ex.io.aluop1_source_id := id2ex.io.output_aluop1_source
+  ex.io.aluop2_source_id := id2ex.io.output_aluop2_source
+  ex.io.csr_read_data_id := id2ex.io.output_csr_read_data
   ex.io.forward_from_mem := mem.io.forward_data
   ex.io.forward_from_wb := wb.io.regs_write_data
   ex.io.reg1_forward := forwarding.io.reg1_forward_ex
   ex.io.reg2_forward := forwarding.io.reg2_forward_ex
+  ex.io.interrupt_assert_clint := clint.io.ex_interrupt_assert
+  ex.io.interrupt_handler_address_clint := clint.io.ex_interrupt_handler_address
 
   ex2mem.io.regs_write_enable := id2ex.io.output_regs_write_enable
   ex2mem.io.regs_write_source := id2ex.io.output_regs_write_source
@@ -146,8 +138,6 @@ class CPU extends Module {
   wb.io.regs_write_source := mem2wb.io.output_regs_write_source
   wb.io.csr_read_data := mem2wb.io.output_csr_read_data
 
-  forwarding.io.rs1_id := id.io.regs_reg1_read_address
-  forwarding.io.rs2_id := id.io.regs_reg2_read_address
   forwarding.io.rs1_ex := id2ex.io.output_regs_reg1_read_address
   forwarding.io.rs2_ex := id2ex.io.output_regs_reg2_read_address
   forwarding.io.rd_mem := ex2mem.io.output_regs_write_address
@@ -156,9 +146,10 @@ class CPU extends Module {
   forwarding.io.reg_write_enable_wb := mem2wb.io.output_regs_write_enable
 
   clint.io.instruction_address_if := inst_fetch.io.instruction_address
-  clint.io.instruction_id := if2id.io.output_instruction
-  clint.io.jump_flag := id.io.clint_jump_flag
-  clint.io.jump_address := id.io.clint_jump_address
+  clint.io.instruction_address_id := if2id.io.instruction_address
+  clint.io.instruction_ex := id2ex.io.output_instruction
+  clint.io.jump_flag := ex.io.clint_jump_flag
+  clint.io.jump_address := ex.io.clint_jump_address
   clint.io.interrupt_flag := if2id.io.output_interrupt_flag
   clint.io.csr_bundle <> csr_regs.io.clint_access_bundle
 
