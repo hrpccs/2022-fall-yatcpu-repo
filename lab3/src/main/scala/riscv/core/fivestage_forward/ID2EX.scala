@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_forward
 
 import chisel3._
 import riscv.Parameters
@@ -23,6 +23,8 @@ class ID2EX extends Module {
     val flush = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
+    val regs_reg1_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val regs_reg2_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_write_enable = Input(Bool())
     val regs_write_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_write_source = Input(UInt(2.W))
@@ -39,6 +41,8 @@ class ID2EX extends Module {
 
     val output_instruction = Output(UInt(Parameters.DataWidth))
     val output_instruction_address = Output(UInt(Parameters.AddrWidth))
+    val output_regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val output_regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val output_regs_write_enable = Output(Bool())
     val output_regs_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val output_regs_write_source = Output(UInt(2.W))
@@ -67,6 +71,18 @@ class ID2EX extends Module {
   instruction_address.io.stall := stall
   instruction_address.io.flush := io.flush
   io.output_instruction_address := instruction_address.io.out
+
+  val regs_reg1_read_address = Module(new PipelineRegister(Parameters.PhysicalRegisterAddrBits))
+  regs_reg1_read_address.io.in := io.regs_reg1_read_address
+  regs_reg1_read_address.io.stall := stall
+  regs_reg1_read_address.io.flush := io.flush
+  io.output_regs_reg1_read_address := regs_reg1_read_address.io.out
+
+  val regs_reg2_read_address = Module(new PipelineRegister(Parameters.PhysicalRegisterAddrBits))
+  regs_reg2_read_address.io.in := io.regs_reg2_read_address
+  regs_reg2_read_address.io.stall := stall
+  regs_reg2_read_address.io.flush := io.flush
+  io.output_regs_reg2_read_address := regs_reg2_read_address.io.out
 
   val regs_write_enable = Module(new PipelineRegister(1))
   regs_write_enable.io.in := io.regs_write_enable

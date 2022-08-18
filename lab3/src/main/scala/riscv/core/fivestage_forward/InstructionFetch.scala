@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_forward
 
 import chisel3._
 import chisel3.util.MuxCase
@@ -24,8 +24,9 @@ object ProgramCounter {
 
 class InstructionFetch extends Module {
   val io = IO(new Bundle {
-    val jump_flag_ex = Input(Bool())
-    val jump_address_ex = Input(UInt(Parameters.AddrWidth))
+    val stall_flag_ctrl = Input(Bool())
+    val jump_flag_id = Input(Bool())
+    val jump_address_id = Input(UInt(Parameters.AddrWidth))
     val rom_instruction = Input(UInt(Parameters.DataWidth))
     val instruction_valid = Input(Bool())
 
@@ -37,8 +38,8 @@ class InstructionFetch extends Module {
   pc := MuxCase(
     pc + 4.U,
     IndexedSeq(
-      io.jump_flag_ex -> io.jump_address_ex,
-      !io.instruction_valid -> pc
+      (io.jump_flag_id && !io.stall_flag_ctrl) -> io.jump_address_id,
+      (io.stall_flag_ctrl || !io.instruction_valid) -> pc
     )
   )
 

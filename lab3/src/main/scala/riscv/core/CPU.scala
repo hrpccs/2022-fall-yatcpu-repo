@@ -16,25 +16,25 @@ package riscv.core
 
 import chisel3._
 import threestage.{CPU => ThreeStageCPU}
-import fivestage.{CPU => FiveStageCPU}
-import fivestage2.{CPU => FiveStageCPU2}
-import fivestage3.{CPU => FiveStageCPU3}
+import fivestage_stall.{CPU => FiveStageCPUStall}
+import fivestage_forward.{CPU => FiveStageCPUForward}
+import fivestage_final.{CPU => FiveStageCPUFinal}
 import riscv.ImplementationType
 
-class CPU(val implementation: Int = ImplementationType.FiveStage) extends Module {
+class CPU(val implementation: Int = ImplementationType.FiveStageFinal) extends Module {
   val io = IO(new CPUBundle)
   implementation match {
     case ImplementationType.ThreeStage =>
       val cpu = Module(new ThreeStageCPU)
       cpu.io <> io
-    case ImplementationType.FiveStage2 =>
-      val cpu = Module(new FiveStageCPU2)
+    case ImplementationType.FiveStageStall =>
+      val cpu = Module(new FiveStageCPUStall)
       cpu.io <> io
-    case ImplementationType.FiveStage3 =>
-      val cpu = Module(new FiveStageCPU3)
+    case ImplementationType.FiveStageForward =>
+      val cpu = Module(new FiveStageCPUForward)
       cpu.io <> io
     case _ =>
-      val cpu = Module(new FiveStageCPU)
+      val cpu = Module(new FiveStageCPUFinal)
       cpu.io <> io
   }
 }

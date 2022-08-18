@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_final
 
 import chisel3._
 import chisel3.util._
@@ -135,12 +135,21 @@ object RegWriteSource {
 class InstructionDecode extends Module {
   val io = IO(new Bundle {
     val instruction = Input(UInt(Parameters.InstructionWidth))
+    val instruction_address = Input(UInt(Parameters.AddrWidth))
+    val reg1_data = Input(UInt(Parameters.DataWidth))
+    val reg2_data = Input(UInt(Parameters.DataWidth))
+    val forward_from_mem = Input(UInt(Parameters.DataWidth))
+    val forward_from_wb = Input(UInt(Parameters.DataWidth))
+    val reg1_forward = Input(UInt(2.W))
+    val reg2_forward = Input(UInt(2.W))
+    val interrupt_assert = Input(Bool())
+    val interrupt_handler_address = Input(UInt(Parameters.AddrWidth))
 
     val regs_reg1_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val regs_reg2_read_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val ex_immediate = Output(UInt(Parameters.DataWidth))
-    val ex_aluop1_source = Output(Bool())
-    val ex_aluop2_source = Output(Bool())
+    val ex_aluop1_source = Output(UInt(1.W))
+    val ex_aluop2_source = Output(UInt(1.W))
     val ex_memory_read_enable = Output(Bool())
     val ex_memory_write_enable = Output(Bool())
     val ex_reg_write_source = Output(UInt(2.W))
@@ -148,6 +157,11 @@ class InstructionDecode extends Module {
     val ex_reg_write_address = Output(UInt(Parameters.PhysicalRegisterAddrWidth))
     val ex_csr_address = Output(UInt(Parameters.CSRRegisterAddrWidth))
     val ex_csr_write_enable = Output(Bool())
+    val ctrl_jump_instruction = Output(Bool())
+    val clint_jump_flag = Output(Bool())
+    val clint_jump_address = Output(UInt(Parameters.AddrWidth))
+    val if_jump_flag = Output(Bool())
+    val if_jump_address = Output(UInt(Parameters.AddrWidth))
   })
   val opcode = io.instruction(6, 0)
   val funct3 = io.instruction(14, 12)
@@ -158,6 +172,22 @@ class InstructionDecode extends Module {
 
   io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
   io.regs_reg2_read_address := rs2
+  val reg1_data = MuxLookup(
+    io.reg1_forward,
+    io.reg1_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
+    )
+  )
+  val reg2_data = MuxLookup(
+    io.reg2_forward,
+    io.reg2_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
+    )
+  )
   io.ex_immediate := MuxLookup(
     opcode,
     Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),
@@ -204,4 +234,28 @@ class InstructionDecode extends Module {
       funct3 === InstructionsTypeCSR.csrrs || funct3 === InstructionsTypeCSR.csrrsi ||
       funct3 === InstructionsTypeCSR.csrrc || funct3 === InstructionsTypeCSR.csrrci
     )
+  io.ctrl_jump_instruction := (opcode === Instructions.jal) ||
+    (opcode === Instructions.jalr) || (opcode === InstructionTypes.B)
+  val instruction_jump_flag = (opcode === Instructions.jal) ||
+    (opcode === Instructions.jalr) ||
+    (opcode === InstructionTypes.B) && MuxLookup(
+      funct3,
+      false.B,
+      IndexedSeq(
+        InstructionsTypeB.beq -> (reg1_data === reg2_data),
+        InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
+        InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
+        InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
+        InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
+        InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
+      )
+    )
+  val instruction_jump_address = io.ex_immediate + Mux(opcode === Instructions.jalr, reg1_data, io.instruction_address)
+  io.clint_jump_flag := instruction_jump_flag
+  io.clint_jump_address := instruction_jump_address
+  io.if_jump_flag := io.interrupt_assert || instruction_jump_flag
+  io.if_jump_address := Mux(io.interrupt_assert,
+    io.interrupt_handler_address,
+    instruction_jump_address
+  )
 }

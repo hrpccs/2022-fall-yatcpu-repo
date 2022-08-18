@@ -65,7 +65,7 @@ class Top extends Module {
   CPU_clkdiv := CPU_next
 
   withClock(CPU_tick.asClock) {
-    val cpu = Module(new CPU(implementation = ImplementationType.FiveStage2))
+    val cpu = Module(new CPU(implementation = ImplementationType.ThreeStage))
     val instruction_valid = RegNext(rom_loader.io.load_finished)
     cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
     cpu.io.debug_read_address := 0.U

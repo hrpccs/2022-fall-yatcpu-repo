@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_stall
 
 import chisel3._
 import riscv.Parameters
@@ -20,6 +20,7 @@ import riscv.core.PipelineRegister
 
 class IF2ID extends Module {
   val io = IO(new Bundle {
+    val stall = Input(Bool())
     val flush = Input(Bool())
     val instruction = Input(UInt(Parameters.InstructionWidth))
     val instruction_address = Input(UInt(Parameters.AddrWidth))
@@ -30,23 +31,21 @@ class IF2ID extends Module {
     val output_interrupt_flag = Output(UInt(Parameters.InterruptFlagWidth))
   })
 
-  val stall = false.B
-
   val instruction = Module(new PipelineRegister(defaultValue = InstructionsNop.nop))
   instruction.io.in := io.instruction
-  instruction.io.stall := stall
+  instruction.io.stall := io.stall
   instruction.io.flush := io.flush
   io.output_instruction := instruction.io.out
 
   val instruction_address = Module(new PipelineRegister(defaultValue = ProgramCounter.EntryAddress))
   instruction_address.io.in := io.instruction_address
-  instruction_address.io.stall := stall
+  instruction_address.io.stall := io.stall
   instruction_address.io.flush := io.flush
   io.output_instruction_address := instruction_address.io.out
 
   val interrupt_flag = Module(new PipelineRegister(Parameters.InterruptFlagBits))
   interrupt_flag.io.in := io.interrupt_flag
-  interrupt_flag.io.stall := stall
+  interrupt_flag.io.stall := io.stall
   interrupt_flag.io.flush := io.flush
   io.output_interrupt_flag := interrupt_flag.io.out
 }

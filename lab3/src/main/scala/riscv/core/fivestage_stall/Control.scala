@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_stall
 
 import chisel3._
 import riscv.Parameters
@@ -20,11 +20,24 @@ import riscv.Parameters
 class Control extends Module {
   val io = IO(new Bundle {
     val jump_flag = Input(Bool())
+    val rs1_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val rs2_id = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val rd_ex = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val reg_write_enable_ex = Input(Bool())
+    val rd_mem = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val reg_write_enable_mem = Input(Bool())
 
     val if_flush = Output(Bool())
     val id_flush = Output(Bool())
+    val pc_stall = Output(Bool())
+    val if_stall = Output(Bool())
   })
 
+  val id_hazard = io.reg_write_enable_ex && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id) ||
+    io.reg_write_enable_mem && io.rd_mem =/= 0.U && (io.rd_mem === io.rs1_id || io.rd_mem === io.rs2_id)
   io.if_flush := io.jump_flag
-  io.id_flush := io.jump_flag
+  io.id_flush := io.jump_flag || id_hazard
+
+  io.pc_stall := id_hazard && !io.jump_flag
+  io.if_stall := id_hazard && !io.jump_flag
 }

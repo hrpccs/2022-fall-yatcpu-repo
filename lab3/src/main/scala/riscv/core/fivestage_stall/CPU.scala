@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.core.threestage
+package riscv.core.fivestage_stall
 
 import chisel3._
 import riscv.Parameters
@@ -28,25 +28,38 @@ class CPU extends Module {
   val id = Module(new InstructionDecode)
   val id2ex = Module(new ID2EX)
   val ex = Module(new Execute)
+  val ex2mem = Module(new EX2MEM)
+  val mem = Module(new MemoryAccess)
+  val mem2wb = Module(new MEM2WB)
+  val wb = Module(new WriteBack)
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
 
   ctrl.io.jump_flag := ex.io.if_jump_flag
+  ctrl.io.rs1_id := id.io.regs_reg1_read_address
+  ctrl.io.rs2_id := id.io.regs_reg2_read_address
+  ctrl.io.rd_ex := id2ex.io.output_regs_write_address
+  ctrl.io.reg_write_enable_ex := id2ex.io.output_regs_write_enable
+  ctrl.io.rd_mem := ex2mem.io.output_regs_write_address
+  ctrl.io.reg_write_enable_mem := ex2mem.io.output_regs_write_enable
 
-  regs.io.write_enable := id2ex.io.output_regs_write_enable
-  regs.io.write_address := id2ex.io.output_regs_write_address
-  regs.io.write_data := ex.io.regs_write_data
+  regs.io.write_enable := mem2wb.io.output_regs_write_enable
+  regs.io.write_address := mem2wb.io.output_regs_write_address
+  regs.io.write_data := wb.io.regs_write_data
   regs.io.read_address1 := id.io.regs_reg1_read_address
   regs.io.read_address2 := id.io.regs_reg2_read_address
+
   regs.io.debug_read_address := io.debug_read_address
   io.debug_read_data := regs.io.debug_read_data
 
   io.instruction_address := inst_fetch.io.instruction_address
-  inst_fetch.io.jump_flag_ex := ex.io.if_jump_flag
-  inst_fetch.io.jump_address_ex := ex.io.if_jump_address
+  inst_fetch.io.stall_flag_ctrl := ctrl.io.pc_stall
+  inst_fetch.io.jump_flag_id := ex.io.if_jump_flag
+  inst_fetch.io.jump_address_id := ex.io.if_jump_address
   inst_fetch.io.rom_instruction := io.instruction
   inst_fetch.io.instruction_valid := io.instruction_valid
 
+  if2id.io.stall := ctrl.io.if_stall
   if2id.io.flush := ctrl.io.if_flush
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.instruction_address
@@ -59,6 +72,8 @@ class CPU extends Module {
   id2ex.io.instruction_address := if2id.io.output_instruction_address
   id2ex.io.reg1_data := regs.io.read_data1
   id2ex.io.reg2_data := regs.io.read_data2
+  id2ex.io.regs_reg1_read_address := id.io.regs_reg1_read_address
+  id2ex.io.regs_reg2_read_address := id.io.regs_reg2_read_address
   id2ex.io.regs_write_enable := id.io.ex_reg_write_enable
   id2ex.io.regs_write_address := id.io.ex_reg_write_address
   id2ex.io.regs_write_source := id.io.ex_reg_write_source
@@ -75,18 +90,48 @@ class CPU extends Module {
   ex.io.instruction_address := id2ex.io.output_instruction_address
   ex.io.reg1_data := id2ex.io.output_reg1_data
   ex.io.reg2_data := id2ex.io.output_reg2_data
-  ex.io.csr_read_data := id2ex.io.output_csr_read_data
   ex.io.immediate_id := id2ex.io.output_immediate
   ex.io.aluop1_source_id := id2ex.io.output_aluop1_source
   ex.io.aluop2_source_id := id2ex.io.output_aluop2_source
-  ex.io.memory_read_enable_id := id2ex.io.output_memory_read_enable
-  ex.io.memory_write_enable_id := id2ex.io.output_memory_write_enable
-  ex.io.regs_write_source_id := id2ex.io.output_regs_write_source
+  ex.io.csr_read_data_id := id2ex.io.output_csr_read_data
   ex.io.interrupt_assert_clint := clint.io.ex_interrupt_assert
   ex.io.interrupt_handler_address_clint := clint.io.ex_interrupt_handler_address
-  io.device_select := ex.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
-  io.memory_bundle <> ex.io.memory_bundle
-  io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## ex.io.memory_bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
+
+  ex2mem.io.regs_write_enable := id2ex.io.output_regs_write_enable
+  ex2mem.io.regs_write_source := id2ex.io.output_regs_write_source
+  ex2mem.io.regs_write_address := id2ex.io.output_regs_write_address
+  ex2mem.io.instruction_address := id2ex.io.output_instruction_address
+  ex2mem.io.funct3 := id2ex.io.output_instruction(14, 12)
+  ex2mem.io.reg2_data := ex.io.mem_reg2_data
+  ex2mem.io.memory_read_enable := id2ex.io.output_memory_read_enable
+  ex2mem.io.memory_write_enable := id2ex.io.output_memory_write_enable
+  ex2mem.io.alu_result := ex.io.mem_alu_result
+  ex2mem.io.csr_read_data := id2ex.io.output_csr_read_data
+
+  mem.io.alu_result := ex2mem.io.output_alu_result
+  mem.io.reg2_data := ex2mem.io.output_reg2_data
+  mem.io.memory_read_enable := ex2mem.io.output_memory_read_enable
+  mem.io.memory_write_enable := ex2mem.io.output_memory_write_enable
+  mem.io.funct3 := ex2mem.io.output_funct3
+  mem.io.regs_write_source := ex2mem.io.output_regs_write_source
+  mem.io.csr_read_data := ex2mem.io.output_csr_read_data
+  io.device_select := mem.io.bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
+  io.memory_bundle <> mem.io.bundle
+  io.memory_bundle.address := 0.U(Parameters.SlaveDeviceCountBits.W) ## mem.io.bundle.address(Parameters.AddrBits - 1 - Parameters.SlaveDeviceCountBits, 0)
+
+  mem2wb.io.instruction_address := ex2mem.io.output_instruction_address
+  mem2wb.io.alu_result := ex2mem.io.output_alu_result
+  mem2wb.io.regs_write_enable := ex2mem.io.output_regs_write_enable
+  mem2wb.io.regs_write_source := ex2mem.io.output_regs_write_source
+  mem2wb.io.regs_write_address := ex2mem.io.output_regs_write_address
+  mem2wb.io.memory_read_data := mem.io.wb_memory_read_data
+  mem2wb.io.csr_read_data := ex2mem.io.output_csr_read_data
+
+  wb.io.instruction_address := mem2wb.io.output_instruction_address
+  wb.io.alu_result := mem2wb.io.output_alu_result
+  wb.io.memory_read_data := mem2wb.io.output_memory_read_data
+  wb.io.regs_write_source := mem2wb.io.output_regs_write_source
+  wb.io.csr_read_data := mem2wb.io.output_csr_read_data
 
   clint.io.instruction_address_if := inst_fetch.io.instruction_address
   clint.io.instruction_address_id := if2id.io.output_instruction_address
