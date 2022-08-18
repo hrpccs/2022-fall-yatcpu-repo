@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.threestage
+package riscv
 
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import riscv.core.PipelineRegister
-import riscv.{Parameters, TestAnnotations}
 
 import scala.math.pow
 import scala.util.Random
