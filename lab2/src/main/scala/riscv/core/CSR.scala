@@ -37,7 +37,9 @@ class CSR extends Module {
     val reg_write_enable_id= Input(Bool())
     val reg_write_address_id = Input(UInt(Parameters.CSRRegisterAddrWidth))
     val reg_write_data_ex= Input(UInt(Parameters.DataWidth))
+    val debug_reg_read_address = Input(UInt(Parameters.CSRRegisterAddrWidth))
 
+    val debug_reg_read_data = Output(UInt(Parameters.DataWidth))
     val reg_read_data = Output(UInt(Parameters.DataWidth))
 
     val clint_access_bundle = Flipped(new CSRDirectAccessBundle)
@@ -66,6 +68,7 @@ class CSR extends Module {
   // If the pipeline and the CLINT are going to read and write the CSR at the same time, let the pipeline write first.
   // This is implemented in a single cycle by passing reg_write_data_ex to clint and writing the data from the CLINT to the CSR.
   io.reg_read_data := MuxLookup(io.reg_read_address_id, 0.U, regLUT)
+  io.debug_reg_read_data := MuxLookup(io.debug_reg_read_address, 0.U,regLUT)
 
   io.clint_access_bundle.mstatus := Mux(io.reg_write_enable_id && io.reg_write_address_id === CSRRegister.MSTATUS, io.reg_write_data_ex, mstatus)
   io.clint_access_bundle.mtvec := Mux(io.reg_write_enable_id && io.reg_write_address_id === CSRRegister.MTVEC, io.reg_write_data_ex, mtvec)
@@ -95,4 +98,6 @@ class CSR extends Module {
       mscratch := io.reg_write_data_ex
     }
   }
+
+
 }
