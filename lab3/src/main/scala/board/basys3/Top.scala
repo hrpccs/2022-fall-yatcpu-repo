@@ -15,11 +15,10 @@
 package board.basys3
 
 import chisel3._
-import chisel3.experimental.ChiselEnum
-import chisel3.util._
-import riscv._
-import peripheral._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.util._
+import peripheral._
+import riscv._
 import riscv.core.CPU
 
 class Top extends Module {
@@ -30,22 +29,73 @@ class Top extends Module {
     val segs = Output(UInt(8.W))
     val digit_mask = Output(UInt(4.W))
 
+    val hsync = Output(Bool())
+    val vsync = Output(Bool())
+    val rgb = Output(UInt(12.W))
     val led = Output(UInt(16.W))
+
+    val tx = Output(Bool())
+    val rx = Input(Bool())
+
   })
 
-  val cpu = Module(new CPU(ImplementationType.ThreeStage))
+  val mem = Module(new Memory(Parameters.MemorySizeInWords))
+  val display = Module(new VGADisplay)
+  val timer = Module(new Timer)
+  val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
+  val dummy = Module(new Dummy)
+
+  display.io.bundle <> dummy.io.bundle
+  mem.io.bundle <> dummy.io.bundle
+  mem.io.debug_read_address := 0.U
+  timer.io.bundle <> dummy.io.bundle
+  uart.io.bundle <> dummy.io.bundle
+  io.tx := uart.io.txd
+  uart.io.rxd := io.rx
 
   val instruction_rom = Module(new InstructionROM(binaryFilename))
-  instruction_rom.io.address := (cpu.io.instruction_address - Parameters.EntryAddress) >> 2
-  cpu.io.instruction := instruction_rom.io.data
+  val rom_loader = Module(new ROMLoader(instruction_rom.capacity))
 
-  val mem = Module(new Memory(Parameters.MemorySizeInWords))
-  mem.io.bundle <> cpu.io.memory_bundle
+  rom_loader.io.rom_data := instruction_rom.io.data
+  rom_loader.io.load_address := Parameters.EntryAddress
+  instruction_rom.io.address := rom_loader.io.rom_address
 
-  cpu.io.interrupt_flag := 0.U
+  val CPU_clkdiv = RegInit(UInt(2.W), 0.U)
+  val CPU_tick = Wire(Bool())
+  val CPU_next = Wire(UInt(2.W))
+  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
+  CPU_tick := CPU_clkdiv === 0.U
+  CPU_clkdiv := CPU_next
 
-  cpu.io.debug_read_address := 0.U
-  mem.io.debug_read_address := 0.U
+  withClock(CPU_tick.asClock) {
+    val cpu = Module(new CPU(ImplementationType.FiveStageStall))
+    cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
+    cpu.io.debug_read_address := 0.U
+    cpu.io.instruction_valid := rom_loader.io.load_finished
+    mem.io.instruction_address := cpu.io.instruction_address
+    cpu.io.instruction := mem.io.instruction
+
+    when(!rom_loader.io.load_finished) {
+      rom_loader.io.bundle <> mem.io.bundle
+      cpu.io.memory_bundle.read_data := 0.U
+    }.otherwise {
+      rom_loader.io.bundle.read_data := 0.U
+      when(cpu.io.device_select === 4.U) {
+        cpu.io.memory_bundle <> timer.io.bundle
+      }.elsewhen(cpu.io.device_select === 2.U) {
+        cpu.io.memory_bundle <> uart.io.bundle
+      }.elsewhen(cpu.io.device_select === 1.U) {
+        cpu.io.memory_bundle <> display.io.bundle
+      }.otherwise {
+        cpu.io.memory_bundle <> mem.io.bundle
+      }
+    }
+  }
+
+  io.hsync := display.io.hsync
+  io.vsync := display.io.vsync
+
+  io.rgb := display.io.rgb
 
   mem.io.debug_read_address := io.switch(15, 1).asUInt << 2
   io.led := Mux(

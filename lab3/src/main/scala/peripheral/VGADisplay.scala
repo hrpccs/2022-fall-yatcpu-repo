@@ -15,6 +15,24 @@
 package peripheral
 
 import chisel3._
+import chisel3.util._
+import riscv.Parameters
+
+object GlyphInfo {
+  val glyphWidth = 8
+  val glyphHeight = 16
+  // ASCII printable characters start from here
+  val spaceIndex = 1
+}
+
+object ScreenInfo {
+  val DisplayHorizontal = 640
+  val DisplayVertical = 480
+
+  val CharCols = DisplayHorizontal / GlyphInfo.glyphWidth
+  val CharRows = DisplayVertical / GlyphInfo.glyphHeight
+  val Chars = CharCols * CharRows
+}
 
 
 class VGASync extends Module {
@@ -99,18 +117,48 @@ class VGASync extends Module {
 
 class VGADisplay extends Module {
   val io = IO(new Bundle() {
-    val x = Output(UInt(16.W))
-    val y = Output(UInt(16.W))
-    val video_on = Output(Bool())
+    val bundle = new RAMBundle
 
     val hsync = Output(Bool())
     val vsync = Output(Bool())
+
+    val rgb = Output(UInt(12.W))
   })
+  val mem = Module(new BlockRAM(ScreenInfo.Chars / Parameters.WordSize))
+  mem.io.write_enable := io.bundle.write_enable
+  mem.io.write_data := io.bundle.write_data
+  mem.io.write_address := io.bundle.write_data
+  mem.io.write_strobe := io.bundle.write_strobe
+
+  mem.io.read_address := io.bundle.address
+  io.bundle.read_data := mem.io.read_data
 
   val sync = Module(new VGASync)
   io.hsync := sync.io.hsync
   io.vsync := sync.io.vsync
-  io.x := sync.io.x
-  io.y := sync.io.y
-  io.video_on := sync.io.y
+
+  val font_rom = Module(new FontROM)
+  val row = (sync.io.y >> log2Up(GlyphInfo.glyphHeight)).asUInt
+  val col = (sync.io.x >> log2Up(GlyphInfo.glyphWidth)).asUInt
+  val char_index = (row * ScreenInfo.CharCols.U) + col
+  val offset = char_index(1, 0)
+  val ch = Wire(UInt(8.W))
+
+  mem.io.debug_read_address := char_index
+  ch := MuxLookup(
+    offset,
+    0.U,
+    IndexedSeq(
+      0.U -> mem.io.debug_read_data(7, 0).asUInt,
+      1.U -> mem.io.debug_read_data(15, 8).asUInt,
+      2.U -> mem.io.debug_read_data(23, 16).asUInt,
+      3.U -> mem.io.debug_read_data(31, 24).asUInt
+    )
+  )
+  font_rom.io.glyph_index := Mux(ch >= 32.U, ch - 31.U, 0.U)
+  font_rom.io.glyph_y := sync.io.y(log2Up(GlyphInfo.glyphHeight) - 1, 0)
+
+  // White if pixel_on and glyph pixel on
+  val glyph_x = sync.io.x(log2Up(GlyphInfo.glyphWidth) - 1, 0)
+  io.rgb := Mux(sync.io.video_on && font_rom.io.glyph_pixel_byte(glyph_x), 0xFFFF.U, 0.U)
 }
