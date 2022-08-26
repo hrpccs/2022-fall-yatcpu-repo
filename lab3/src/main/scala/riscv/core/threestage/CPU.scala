@@ -32,9 +32,8 @@ class CPU extends Module {
   val csr_regs = Module(new CSR)
 
   // Lab3(Flush)
-  ctrl.io.jump_flag := ex.io.if_jump_flag
-  if2id.io.flush := ctrl.io.if_flush
-  id2ex.io.flush := ctrl.io.id_flush
+  if2id.io.flush := false.B
+  id2ex.io.flush := false.B
   // Lab3(Flush) End
 
   regs.io.write_enable := id2ex.io.output_regs_write_enable

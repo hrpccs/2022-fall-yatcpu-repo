@@ -32,10 +32,9 @@ class Control extends Module {
   })
 
   // Lab3(Forward)
-  val id_hazard = io.memory_read_enable_ex && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id)
-  io.if_flush := io.jump_flag
-  io.id_flush := io.jump_flag || id_hazard
-  io.pc_stall := id_hazard
-  io.if_stall := id_hazard
+  io.if_flush := false.B
+  io.id_flush := false.B
+  io.pc_stall := false.B
+  io.if_stall := false.B
   // Lab3(Forward) End
 }
