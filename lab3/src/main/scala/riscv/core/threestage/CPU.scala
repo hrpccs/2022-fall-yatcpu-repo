@@ -31,7 +31,11 @@ class CPU extends Module {
   val clint = Module(new CLINT)
   val csr_regs = Module(new CSR)
 
+  // Lab3(Flush)
   ctrl.io.jump_flag := ex.io.if_jump_flag
+  if2id.io.flush := ctrl.io.if_flush
+  id2ex.io.flush := ctrl.io.id_flush
+  // Lab3(Flush) End
 
   regs.io.write_enable := id2ex.io.output_regs_write_enable
   regs.io.write_address := id2ex.io.output_regs_write_address
@@ -47,14 +51,12 @@ class CPU extends Module {
   inst_fetch.io.rom_instruction := io.instruction
   inst_fetch.io.instruction_valid := io.instruction_valid
 
-  if2id.io.flush := ctrl.io.if_flush
   if2id.io.instruction := inst_fetch.io.id_instruction
   if2id.io.instruction_address := inst_fetch.io.instruction_address
   if2id.io.interrupt_flag := io.interrupt_flag
 
   id.io.instruction := if2id.io.output_instruction
 
-  id2ex.io.flush := ctrl.io.id_flush
   id2ex.io.instruction := if2id.io.output_instruction
   id2ex.io.instruction_address := if2id.io.output_instruction_address
   id2ex.io.reg1_data := regs.io.read_data1

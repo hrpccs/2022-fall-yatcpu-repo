@@ -172,22 +172,6 @@ class InstructionDecode extends Module {
 
   io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
   io.regs_reg2_read_address := rs2
-  val reg1_data = MuxLookup(
-    io.reg1_forward,
-    io.reg1_data,
-    IndexedSeq(
-      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-      ForwardingType.ForwardFromWB -> io.forward_from_wb
-    )
-  )
-  val reg2_data = MuxLookup(
-    io.reg2_forward,
-    io.reg2_data,
-    IndexedSeq(
-      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-      ForwardingType.ForwardFromWB -> io.forward_from_wb
-    )
-  )
   io.ex_immediate := MuxLookup(
     opcode,
     Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),
@@ -234,6 +218,24 @@ class InstructionDecode extends Module {
       funct3 === InstructionsTypeCSR.csrrs || funct3 === InstructionsTypeCSR.csrrsi ||
       funct3 === InstructionsTypeCSR.csrrc || funct3 === InstructionsTypeCSR.csrrci
     )
+
+  // Lab3(Final)
+  val reg1_data = MuxLookup(
+    io.reg1_forward,
+    io.reg1_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
+    )
+  )
+  val reg2_data = MuxLookup(
+    io.reg2_forward,
+    io.reg2_data,
+    IndexedSeq(
+      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
+      ForwardingType.ForwardFromWB -> io.forward_from_wb
+    )
+  )
   io.ctrl_jump_instruction := (opcode === Instructions.jal) ||
     (opcode === Instructions.jalr) || (opcode === InstructionTypes.B)
   val instruction_jump_flag = (opcode === Instructions.jal) ||
@@ -258,4 +260,5 @@ class InstructionDecode extends Module {
     io.interrupt_handler_address,
     instruction_jump_address
   )
+  // Lab3(Final) End
 }

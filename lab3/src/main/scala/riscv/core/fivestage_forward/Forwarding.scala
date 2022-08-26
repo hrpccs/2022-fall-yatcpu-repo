@@ -32,10 +32,12 @@ class Forwarding extends Module {
     val rd_wb = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
     val reg_write_enable_wb = Input(Bool())
 
+    // Forwarding Type
     val reg1_forward_ex = Output(UInt(2.W))
     val reg2_forward_ex = Output(UInt(2.W))
   })
 
+  // Lab3(Forward)
   when(io.reg_write_enable_mem && io.rd_mem =/= 0.U && io.rd_mem === io.rs1_ex) {
     io.reg1_forward_ex := ForwardingType.ForwardFromMEM
   }.elsewhen(io.reg_write_enable_wb && io.rd_wb =/= 0.U && io.rd_wb === io.rs1_ex) {
@@ -51,4 +53,5 @@ class Forwarding extends Module {
   }.otherwise {
     io.reg2_forward_ex := ForwardingType.NoForward
   }
+  // Lab3(Forward) End
 }

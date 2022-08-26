@@ -39,6 +39,8 @@ class Forwarding extends Module {
     val reg1_forward_ex = Output(UInt(2.W))
     val reg2_forward_ex = Output(UInt(2.W))
   })
+
+  // Lab3(Final)
   when(io.reg_write_enable_mem && io.rd_mem =/= 0.U && io.rd_mem === io.rs1_id) {
     io.reg1_forward_id := ForwardingType.ForwardFromMEM
   }.elsewhen(io.reg_write_enable_wb && io.rd_wb =/= 0.U && io.rd_wb === io.rs1_id) {
@@ -70,4 +72,5 @@ class Forwarding extends Module {
   }.otherwise {
     io.reg2_forward_ex := ForwardingType.NoForward
   }
+  // Lab3(Final) End
 }

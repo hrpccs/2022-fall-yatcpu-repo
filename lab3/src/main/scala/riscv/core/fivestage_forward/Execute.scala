@@ -60,6 +60,7 @@ class Execute extends Module {
   alu_ctrl.io.funct7 := funct7
   alu.io.func := alu_ctrl.io.alu_funct
 
+  // Lab3(Forward)
   val reg1_data = MuxLookup(
     io.reg1_forward,
     io.reg1_data,
@@ -68,12 +69,6 @@ class Execute extends Module {
       ForwardingType.ForwardFromWB -> io.forward_from_wb
     )
   )
-  alu.io.op1 := Mux(
-    io.aluop1_source_id === ALUOp1Source.InstructionAddress,
-    io.instruction_address,
-    reg1_data
-  )
-
   val reg2_data = MuxLookup(
     io.reg2_forward,
     io.reg2_data,
@@ -81,6 +76,13 @@ class Execute extends Module {
       ForwardingType.ForwardFromMEM -> io.forward_from_mem,
       ForwardingType.ForwardFromWB -> io.forward_from_wb
     )
+  )
+  // Lab3(Forward) End
+
+  alu.io.op1 := Mux(
+    io.aluop1_source_id === ALUOp1Source.InstructionAddress,
+    io.instruction_address,
+    reg1_data
   )
   alu.io.op2 := Mux(
     io.aluop2_source_id === ALUOp2Source.Immediate,

@@ -33,4 +33,5 @@ class PipelineRegister(width: Int = Parameters.DataBits, defaultValue: UInt = 0.
     reg := io.in
   }
   io.out := reg
+  // Lab3(PipelineRegister) End
 }
