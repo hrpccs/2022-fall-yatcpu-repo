@@ -25,7 +25,7 @@ object VerilatorEnabler {
       Files.exists(Paths.get(path, "verilator"))
     })) {
       Seq(VerilatorBackendAnnotation)
-    } else {
+    } else{
       Seq()
     }
   } else {
