@@ -15,15 +15,8 @@
 package peripheral
 
 import chisel3._
-import chisel3.experimental.{ChiselAnnotation, annotate}
 import chisel3.util._
-import chisel3.util.experimental.loadMemoryFromFileInline
-import firrtl.annotations.MemorySynthInit
 import riscv.Parameters
-
-import java.io.FileWriter
-import java.nio.file.Paths
-import javax.imageio.ImageIO
 
 object GlyphInfo {
   val glyphWidth = 8

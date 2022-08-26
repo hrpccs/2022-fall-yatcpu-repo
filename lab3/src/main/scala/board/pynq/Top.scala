@@ -18,8 +18,8 @@ import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util.Cat
 import peripheral._
-import riscv.{ImplementationType, Parameters}
 import riscv.core.CPU
+import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
   val binaryFilename = "tetris.asmbin"
@@ -56,7 +56,7 @@ class Top extends Module {
   rom_loader.io.load_address := Parameters.EntryAddress
   instruction_rom.io.address := rom_loader.io.rom_address
 
-  val CPU_clkdiv = RegInit(UInt(2.W),0.U)
+  val CPU_clkdiv = RegInit(UInt(2.W), 0.U)
   val CPU_tick = Wire(Bool())
   val CPU_next = Wire(UInt(2.W))
   CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)

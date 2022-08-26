@@ -65,7 +65,7 @@ class HDMISync extends Module {
   val vsync_next = Wire(Bool())
   val hsync_next = Wire(Bool())
 
-  pixel_next := Mux(pixel === 4.U , 0.U , pixel + 1.U)
+  pixel_next := Mux(pixel === 4.U, 0.U, pixel + 1.U)
   pixel_tick := pixel === 0.U
 
   h_count_next := Mux(
@@ -97,7 +97,8 @@ class HDMISync extends Module {
   io.p_tick := pixel_tick
   io.f_tick := io.x === 0.U && io.y === 0.U
 }
-class TMDS_encoder extends  Module{
+
+class TMDS_encoder extends Module {
   val io = IO(new Bundle() {
     val video_data = Input(UInt(8.W)) //r,g,b,8bit
     val control_data = Input(UInt(2.W))
@@ -106,69 +107,73 @@ class TMDS_encoder extends  Module{
   })
   val Nb1s = PopCount(io.video_data)
   val XNOR = Wire(Bool())
-  XNOR := (Nb1s>4.U(4.W)) || (Nb1s === 4.U(4.W) && io.video_data(0) === 0.U)
-  //using recursion to compute
-  def xorfunc(value: UInt):UInt = {
-    value.getWidth match {
-      case 1 => value(0)
-      case s => val res = xorfunc(VecInit(value.asBools.drop(1)).asUInt)
-            value.asBools.head ^ res.asBools.head ## res
-    }
-  }
+  XNOR := (Nb1s > 4.U(4.W)) || (Nb1s === 4.U(4.W) && io.video_data(0) === 0.U)
   val xored = 1.U(1.W) ## xorfunc(io.video_data)
-
-  def xnorfunc(value: UInt): UInt = {
-    value.getWidth match {
-      case 1 => value(0)
-      case s => val res = xnorfunc(VecInit(value.asBools.drop(1)).asUInt)
-            !(value.asBools.head ^ res.asBools.head) ## res
-    }
-  }
   val xnored = 0.U(1.W) ## xnorfunc(io.video_data)
-
   val q_m = Mux(
     XNOR,
     xnored,
     xored
   )
-
   val diff = PopCount(q_m).asSInt - 4.S
   val diffSize = diff.getWidth
-
   val disparitySize = 4
   val disparityReg = RegInit(0.S(disparitySize.W))
   val doutReg = RegInit("b1010101011".U(10.W))
 
-  when(io.video_on === false.B){
+  //using recursion to compute
+  def xorfunc(value: UInt): UInt = {
+    value.getWidth match {
+      case 1 => value(0)
+      case s => val res = xorfunc(VecInit(value.asBools.drop(1)).asUInt)
+        value.asBools.head ^ res.asBools.head ## res
+    }
+  }
+
+  def xnorfunc(value: UInt): UInt = {
+    value.getWidth match {
+      case 1 => value(0)
+      case s => val res = xnorfunc(VecInit(value.asBools.drop(1)).asUInt)
+        !(value.asBools.head ^ res.asBools.head) ## res
+    }
+  }
+
+  when(io.video_on === false.B) {
     disparityReg := 0.S
     doutReg := "b1010101011".U(10.W)
-    switch(io.control_data){
-      is("b00".U(2.W)){doutReg := "b1101010100".U(10.W)}
-      is("b01".U(2.W)){doutReg := "b0010101011".U(10.W)}
-      is("b10".U(2.W)){doutReg := "b0101010100".U(10.W)}
+    switch(io.control_data) {
+      is("b00".U(2.W)) {
+        doutReg := "b1101010100".U(10.W)
+      }
+      is("b01".U(2.W)) {
+        doutReg := "b0010101011".U(10.W)
+      }
+      is("b10".U(2.W)) {
+        doutReg := "b0101010100".U(10.W)
+      }
     }
-  }.otherwise{
-    when(disparityReg === 0.S || diff === 0.S){
-      when(q_m(8) === false.B){
+  }.otherwise {
+    when(disparityReg === 0.S || diff === 0.S) {
+      when(q_m(8) === false.B) {
         doutReg := "b10".U(2.W) ## q_m(7, 0)
         disparityReg := disparityReg - diff
-      }.otherwise{
+      }.otherwise {
         doutReg := "b01".U(2.W) ## q_m(7, 0)
         disparityReg := disparityReg + diff
       }
-    }.elsewhen( (!diff(diffSize-1) && !disparityReg(disparitySize - 1))
-      || (diff(diffSize-1) && disparityReg(disparitySize - 1))){
+    }.elsewhen((!diff(diffSize - 1) && !disparityReg(disparitySize - 1))
+      || (diff(diffSize - 1) && disparityReg(disparitySize - 1))) {
       doutReg := 1.U(1.W) ## q_m(8) ## ~q_m(7, 0)
-      when(q_m(8)){
+      when(q_m(8)) {
         disparityReg := disparityReg + 1.S - diff
-      }.otherwise{
+      }.otherwise {
         disparityReg := disparityReg - diff
       }
-    }.otherwise{
+    }.otherwise {
       doutReg := 0.U(1.W) ## q_m
-      when(q_m(8)){
+      when(q_m(8)) {
         disparityReg := disparityReg + diff
-      }.otherwise{
+      }.otherwise {
         disparityReg := disparityReg - 1.S + diff
       }
     }
@@ -177,7 +182,7 @@ class TMDS_encoder extends  Module{
   io.TMDS := doutReg
 }
 
-class HDMIDisplay extends Module{
+class HDMIDisplay extends Module {
   val io = IO(new Bundle() {
     val bundle = new RAMBundle
 
@@ -233,7 +238,7 @@ class HDMIDisplay extends Module{
   val pll_lock = Wire(Bool())
   val tmdspll = Module(new TMDS_PLLVR)
   val rst = Wire(Reset())
-  tmdspll.io.clkin := pixel_clk.asClock()
+  tmdspll.io.clkin := pixel_clk.asClock
   serial_clk := tmdspll.io.clkout
   pll_lock := tmdspll.io.lock
   tmdspll.io.reset := reset
@@ -241,7 +246,7 @@ class HDMIDisplay extends Module{
 
   val tmds = Wire(UInt(3.W))
   val tmds_clk = Wire(Bool())
-  withClockAndReset(pixel_clk.asClock(),rst){
+  withClockAndReset(pixel_clk.asClock, rst) {
     val tmds_channel1 = Wire(UInt(10.W))
     val tmds_channel2 = Wire(UInt(10.W))
     val tmds_channel0 = Wire(UInt(10.W))
@@ -258,9 +263,9 @@ class HDMIDisplay extends Module{
     tmds_green.io.control_data := 0.U
     tmds_red.io.control_data := 0.U
 
-    tmds_red.io.video_data := rgb(23,16)
-    tmds_blue.io.video_data := rgb(15,8)
-    tmds_green.io.video_data := rgb(7,0)
+    tmds_red.io.video_data := rgb(23, 16)
+    tmds_blue.io.video_data := rgb(15, 8)
+    tmds_green.io.video_data := rgb(7, 0)
 
     tmds_channel0 := tmds_blue.io.TMDS
     tmds_channel1 := tmds_green.io.TMDS
@@ -315,6 +320,7 @@ class TMDS_PLLVR extends BlackBox {
     val lock = Output(Bool())
   })
 }
+
 /* OSER10 : serializer 10:1*/
 class OSER10 extends Module {
   val io = IO(new Bundle {
@@ -334,7 +340,7 @@ class OSER10 extends Module {
     val RESET = Input(Reset()) // Asynchronous reset input signal,
     //active-high.
   })
-  withClockAndReset(io.FCLK,io.RESET){
+  withClockAndReset(io.FCLK, io.RESET) {
     val count = RegInit(0.U(4.W))
     val countnext = Wire(UInt(4.W))
     io.Q := MuxLookup(
@@ -354,11 +360,12 @@ class OSER10 extends Module {
       )
     )
     countnext := Mux(
-      count === 9.U , 0.U, count + 1.U
+      count === 9.U, 0.U, count + 1.U
     )
     count := countnext
   }
 }
+
 class Oser10Module extends Module {
   val io = IO(new Bundle {
     val q = Output(Bool())
@@ -380,8 +387,9 @@ class Oser10Module extends Module {
   osr10.io.D9 := io.data(9)
   osr10.io.PCLK := clock
   osr10.io.FCLK := io.fclk
-  osr10.io.RESET:= reset
+  osr10.io.RESET := reset
 }
+
 /* lvds output */
 class OBUFDS extends BlackBox {
   val io = IO(new Bundle {

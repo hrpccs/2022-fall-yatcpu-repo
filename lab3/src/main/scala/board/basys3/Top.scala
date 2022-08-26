@@ -15,11 +15,10 @@
 package board.basys3
 
 import chisel3._
-import chisel3.experimental.ChiselEnum
-import chisel3.util._
-import riscv._
-import peripheral._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.util._
+import peripheral._
+import riscv._
 import riscv.core.CPU
 
 class Top extends Module {
