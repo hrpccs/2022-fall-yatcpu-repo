@@ -117,7 +117,6 @@ object AXI4LiteStates extends ChiselEnum {
   val Idle, ReadAddr, ReadData, WriteAddr, WriteData, WriteResp = Value
 }
 
-// TODO(howard): implement full duplex
 class AXI4LiteSlave(addrWidth: Int, dataWidth: Int) extends Module {
   val io = IO(new Bundle {
     val channels = Flipped(new AXI4LiteChannels(addrWidth, dataWidth))
@@ -153,7 +152,7 @@ class AXI4LiteSlave(addrWidth: Int, dataWidth: Int) extends Module {
   io.channels.write_response_channel.BVALID := BVALID
   val BRESP = WireInit(0.U(AXI4Lite.respWidth))
   io.channels.write_response_channel.BRESP := BRESP
-
+  //lab4(BUS)
   switch(state) {
     is(AXI4LiteStates.Idle) {
       read := false.B
@@ -248,6 +247,7 @@ class AXI4LiteMaster(addrWidth: Int, dataWidth: Int) extends Module {
   val BREADY = RegInit(false.B)
   io.channels.write_response_channel.BREADY := BREADY
 
+  //lab4(BUS)
   switch(state) {
     is(AXI4LiteStates.Idle) {
       WVALID := false.B
