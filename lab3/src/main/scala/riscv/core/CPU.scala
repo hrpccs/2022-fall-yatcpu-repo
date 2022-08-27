@@ -15,11 +15,11 @@
 package riscv.core
 
 import chisel3._
-import threestage.{CPU => ThreeStageCPU}
-import fivestage_stall.{CPU => FiveStageCPUStall}
-import fivestage_forward.{CPU => FiveStageCPUForward}
-import fivestage_final.{CPU => FiveStageCPUFinal}
 import riscv.ImplementationType
+import riscv.core.fivestage_final.{CPU => FiveStageCPUFinal}
+import riscv.core.fivestage_forward.{CPU => FiveStageCPUForward}
+import riscv.core.fivestage_stall.{CPU => FiveStageCPUStall}
+import riscv.core.threestage.{CPU => ThreeStageCPU}
 
 class CPU(val implementation: Int = ImplementationType.FiveStageFinal) extends Module {
   val io = IO(new CPUBundle)

@@ -39,8 +39,6 @@ class Execute extends Module {
 
     val memory_bundle = Flipped(new RAMBundle)
 
-    val mem_alu_result = Output(UInt(Parameters.DataWidth))
-    val mem_reg2_data = Output(UInt(Parameters.DataWidth))
     val csr_write_data = Output(UInt(Parameters.DataWidth))
     val regs_write_data = Output(UInt(Parameters.DataWidth))
     val if_jump_flag = Output(Bool())
@@ -72,17 +70,19 @@ class Execute extends Module {
     io.immediate_id,
     io.reg2_data
   )
-  io.mem_alu_result := alu.io.result
-  io.mem_reg2_data := io.reg2_data
-  io.csr_write_data := MuxLookup(funct3, 0.U, IndexedSeq(
-    InstructionsTypeCSR.csrrw -> io.reg1_data,
-    InstructionsTypeCSR.csrrc -> io.csr_read_data.&((~io.reg1_data).asUInt),
-    InstructionsTypeCSR.csrrs -> io.csr_read_data.|(io.reg1_data),
-    InstructionsTypeCSR.csrrwi -> Cat(0.U(27.W), uimm),
-    InstructionsTypeCSR.csrrci -> io.csr_read_data.&((~Cat(0.U(27.W), uimm)).asUInt),
-    InstructionsTypeCSR.csrrsi -> io.csr_read_data.|(Cat(0.U(27.W), uimm)),
-  ))
-  
+  io.csr_write_data := MuxLookup(
+    funct3,
+    0.U,
+    IndexedSeq(
+      InstructionsTypeCSR.csrrw -> io.reg1_data,
+      InstructionsTypeCSR.csrrc -> (io.csr_read_data & (~io.reg1_data).asUInt),
+      InstructionsTypeCSR.csrrs -> (io.csr_read_data | io.reg1_data),
+      InstructionsTypeCSR.csrrwi -> (0.U(27.W) ## uimm),
+      InstructionsTypeCSR.csrrci -> (io.csr_read_data & (~(0.U(27.W) ## uimm)).asUInt),
+      InstructionsTypeCSR.csrrsi -> (io.csr_read_data | 0.U(27.W) ## uimm),
+    )
+  )
+
   // memory access
   val mem_address_index = alu.io.result(log2Up(Parameters.WordSize) - 1, 0).asUInt
   val mem_read_data = Wire(UInt(Parameters.DataWidth))
@@ -165,7 +165,6 @@ class Execute extends Module {
       RegWriteSource.NextInstructionAddress -> (io.instruction_address + 4.U)
     )
   )
-
 
   // jump and interrupt
   val instruction_jump_flag = (opcode === Instructions.jal) ||

@@ -172,22 +172,6 @@ class InstructionDecode extends Module {
 
   io.regs_reg1_read_address := Mux(opcode === Instructions.lui, 0.U(Parameters.PhysicalRegisterAddrWidth), rs1)
   io.regs_reg2_read_address := rs2
-  val reg1_data = MuxLookup(
-    io.reg1_forward,
-    io.reg1_data,
-    IndexedSeq(
-      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-      ForwardingType.ForwardFromWB -> io.forward_from_wb
-    )
-  )
-  val reg2_data = MuxLookup(
-    io.reg2_forward,
-    io.reg2_data,
-    IndexedSeq(
-      ForwardingType.ForwardFromMEM -> io.forward_from_mem,
-      ForwardingType.ForwardFromWB -> io.forward_from_wb
-    )
-  )
   io.ex_immediate := MuxLookup(
     opcode,
     Cat(Fill(20, io.instruction(31)), io.instruction(31, 20)),
@@ -234,28 +218,12 @@ class InstructionDecode extends Module {
       funct3 === InstructionsTypeCSR.csrrs || funct3 === InstructionsTypeCSR.csrrsi ||
       funct3 === InstructionsTypeCSR.csrrc || funct3 === InstructionsTypeCSR.csrrci
     )
-  io.ctrl_jump_instruction := (opcode === Instructions.jal) ||
-    (opcode === Instructions.jalr) || (opcode === InstructionTypes.B)
-  val instruction_jump_flag = (opcode === Instructions.jal) ||
-    (opcode === Instructions.jalr) ||
-    (opcode === InstructionTypes.B) && MuxLookup(
-      funct3,
-      false.B,
-      IndexedSeq(
-        InstructionsTypeB.beq -> (reg1_data === reg2_data),
-        InstructionsTypeB.bne -> (reg1_data =/= reg2_data),
-        InstructionsTypeB.blt -> (reg1_data.asSInt < reg2_data.asSInt),
-        InstructionsTypeB.bge -> (reg1_data.asSInt >= reg2_data.asSInt),
-        InstructionsTypeB.bltu -> (reg1_data.asUInt < reg2_data.asUInt),
-        InstructionsTypeB.bgeu -> (reg1_data.asUInt >= reg2_data.asUInt)
-      )
-    )
-  val instruction_jump_address = io.ex_immediate + Mux(opcode === Instructions.jalr, reg1_data, io.instruction_address)
-  io.clint_jump_flag := instruction_jump_flag
-  io.clint_jump_address := instruction_jump_address
-  io.if_jump_flag := io.interrupt_assert || instruction_jump_flag
-  io.if_jump_address := Mux(io.interrupt_assert,
-    io.interrupt_handler_address,
-    instruction_jump_address
-  )
+
+  // Lab3(Final)
+  io.ctrl_jump_instruction := false.B
+  io.clint_jump_flag := false.B
+  io.clint_jump_address := 0.U
+  io.if_jump_flag := false.B
+  io.if_jump_address := 0.U
+  // Lab3(Final) End
 }

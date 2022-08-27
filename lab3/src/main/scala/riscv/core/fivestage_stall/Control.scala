@@ -33,11 +33,11 @@ class Control extends Module {
     val if_stall = Output(Bool())
   })
 
-  val id_hazard = io.reg_write_enable_ex && io.rd_ex =/= 0.U && (io.rd_ex === io.rs1_id || io.rd_ex === io.rs2_id) ||
-    io.reg_write_enable_mem && io.rd_mem =/= 0.U && (io.rd_mem === io.rs1_id || io.rd_mem === io.rs2_id)
-  io.if_flush := io.jump_flag
-  io.id_flush := io.jump_flag || id_hazard
+  // Lab3(Stall)
+  io.if_flush := false.B
+  io.id_flush := false.B
 
-  io.pc_stall := id_hazard && !io.jump_flag
-  io.if_stall := id_hazard && !io.jump_flag
+  io.pc_stall := false.B
+  io.if_stall := false.B
+  // Lab3(Stall) End
 }

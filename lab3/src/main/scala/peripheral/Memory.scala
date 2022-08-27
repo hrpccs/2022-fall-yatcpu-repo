@@ -15,7 +15,6 @@
 package peripheral
 
 import chisel3._
-import chisel3.util._
 import riscv.Parameters
 
 class RAMBundle extends Bundle {
@@ -25,6 +24,7 @@ class RAMBundle extends Bundle {
   val write_strobe = Input(Vec(Parameters.WordSize, Bool()))
   val read_data = Output(UInt(Parameters.DataWidth))
 }
+
 // The purpose of this module is to help the synthesis tool recognize
 // our memory as a Block RAM template
 class BlockRAM(capacity: Int) extends Module {

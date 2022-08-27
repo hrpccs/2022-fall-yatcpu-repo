@@ -12,23 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package riscv.singlecycle
-
+package riscv
 
 import chisel3._
-import chiseltest._
-import org.scalatest.flatspec.AnyFlatSpec
 import peripheral.{InstructionROM, Memory, ROMLoader}
-import riscv.core.{CPU, ProgramCounter}
-import riscv.{Parameters, TestAnnotations}
+import riscv.core.CPU
 
-import java.nio.{ByteBuffer, ByteOrder}
-
-
-class TestTopModule(exeFilename: String) extends Module {
+class TestTopModule(exeFilename: String, implementation: Int) extends Module {
   val io = IO(new Bundle {
-    val mem_debug_read_address = Input(UInt(Parameters.AddrWidth))
     val regs_debug_read_address = Input(UInt(Parameters.PhysicalRegisterAddrWidth))
+    val mem_debug_read_address = Input(UInt(Parameters.AddrWidth))
     val regs_debug_read_data = Output(UInt(Parameters.DataWidth))
     val mem_debug_read_data = Output(UInt(Parameters.DataWidth))
   })
@@ -49,12 +42,12 @@ class TestTopModule(exeFilename: String) extends Module {
   CPU_clkdiv := CPU_next
 
   withClock(CPU_tick.asClock) {
-    val cpu = Module(new CPU)
+    val cpu = Module(new CPU(implementation))
     cpu.io.debug_read_address := 0.U
     cpu.io.instruction_valid := rom_loader.io.load_finished
     mem.io.instruction_address := cpu.io.instruction_address
     cpu.io.instruction := mem.io.instruction
-
+    cpu.io.interrupt_flag := 0.U
 
     when(!rom_loader.io.load_finished) {
       rom_loader.io.bundle <> mem.io.bundle
@@ -70,56 +63,4 @@ class TestTopModule(exeFilename: String) extends Module {
 
   mem.io.debug_read_address := io.mem_debug_read_address
   io.mem_debug_read_data := mem.io.debug_read_data
-}
-
-
-class FibonacciTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "Single Cycle CPU"
-  it should "calculate recursively fibonacci(10)" in {
-    test(new TestTopModule("fibonacci.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      for (i <- 1 to 50) {
-        c.clock.step(1000)
-        c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
-      }
-
-      c.io.mem_debug_read_address.poke(4.U)
-      c.clock.step()
-      c.io.mem_debug_read_data.expect(55.U)
-    }
-  }
-}
-
-class QuicksortTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "Single Cycle CPU"
-  it should "quicksort 10 numbers" in {
-    test(new TestTopModule("quicksort.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      for (i <- 1 to 50) {
-        c.clock.step(1000)
-        c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
-      }
-      for (i <- 1 to 10) {
-        c.io.mem_debug_read_address.poke((4 * i).U)
-        c.clock.step()
-        c.io.mem_debug_read_data.expect((i - 1).U)
-      }
-    }
-  }
-}
-
-class ByteAccessTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "Single Cycle CPU"
-  it should "store and load single byte" in {
-    test(new TestTopModule("sb.asmbin")).withAnnotations(TestAnnotations.annos) { c =>
-      for (i <- 1 to 500) {
-        c.clock.step()
-        c.io.mem_debug_read_address.poke((i * 4).U) // Avoid timeout
-      }
-      c.io.regs_debug_read_address.poke(5.U)
-      c.io.regs_debug_read_data.expect(0xDEADBEEFL.U)
-      c.io.regs_debug_read_address.poke(6.U)
-      c.io.regs_debug_read_data.expect(0xEF.U)
-      c.io.regs_debug_read_address.poke(1.U)
-      c.io.regs_debug_read_data.expect(0x15EF.U)
-    }
-  }
 }

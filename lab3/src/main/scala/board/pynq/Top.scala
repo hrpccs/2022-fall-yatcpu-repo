@@ -18,8 +18,8 @@ import chisel3._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util.Cat
 import peripheral._
-import riscv.{ImplementationType, Parameters}
 import riscv.core.CPU
+import riscv.{ImplementationType, Parameters}
 
 class Top extends Module {
   val binaryFilename = "tetris.asmbin"
@@ -36,8 +36,7 @@ class Top extends Module {
     val led = Output(UInt(4.W))
   })
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
-//  val hdmi_display = Module(new HDMIDisplay)
-  val display = Module(new HDMIDisplay2)
+  val display = Module(new HDMIDisplay)
   val timer = Module(new Timer)
   val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
   val dummy = Module(new Dummy)
@@ -57,15 +56,15 @@ class Top extends Module {
   rom_loader.io.load_address := Parameters.EntryAddress
   instruction_rom.io.address := rom_loader.io.rom_address
 
-  val CPU_clkdiv = RegInit(UInt(3.W),0.U)
+  val CPU_clkdiv = RegInit(UInt(2.W), 0.U)
   val CPU_tick = Wire(Bool())
-  val CPU_next = Wire(UInt(3.W))
-  CPU_next := Mux(CPU_clkdiv === 7.U, 0.U, CPU_clkdiv + 1.U)
+  val CPU_next = Wire(UInt(2.W))
+  CPU_next := Mux(CPU_clkdiv === 3.U, 0.U, CPU_clkdiv + 1.U)
   CPU_tick := CPU_clkdiv === 0.U
   CPU_clkdiv := CPU_next
 
   withClock(CPU_tick.asClock) {
-    val cpu = Module(new CPU(implementation = ImplementationType.ThreeStage))
+    val cpu = Module(new CPU(implementation = ImplementationType.FiveStageStall))
     val instruction_valid = RegNext(rom_loader.io.load_finished)
     cpu.io.interrupt_flag := Cat(uart.io.signal_interrupt, timer.io.signal_interrupt)
     cpu.io.debug_read_address := 0.U
@@ -91,11 +90,6 @@ class Top extends Module {
   }
 
   io.led := 15.U(4.W)
-
-//  display.io.x := hdmi_display.io.x
-//  display.io.y := hdmi_display.io.y
-//  display.io.video_on := hdmi_display.io.video_on
-//  hdmi_display.io.rgb := display.io.rgb
 
   io.hdmi_hpdn := 1.U
   io.hdmi_data_n := display.io.TMDSdata_n
