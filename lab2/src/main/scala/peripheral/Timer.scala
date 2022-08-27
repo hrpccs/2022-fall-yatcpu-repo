@@ -33,7 +33,7 @@ class Timer extends Module {
   val enabled = RegInit(true.B)
   io.debug_enabled := enabled
 
-  io.bundle.read_data := 0.U
+
   io.bundle.read_data := MuxLookup(
     io.bundle.address,
     0.U,
@@ -58,4 +58,7 @@ class Timer extends Module {
   }.otherwise {
     count := count + 1.U
   }
+
+  //lab2(CLINTCSR)
+  //finish the read-write for count,limit,enabled. And produce appropriate signal_interrupt
 }

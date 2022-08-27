@@ -35,10 +35,10 @@ class InstructionFetch extends Module {
   val pc = RegInit(ProgramCounter.EntryAddress)
 
   pc := MuxCase(
-    pc + 4.U,
+    pc,
     IndexedSeq(
       io.jump_flag_ex -> io.jump_address_ex,
-      !io.instruction_valid -> pc
+      io.instruction_valid -> (pc + 4.U)
     )
   )
 

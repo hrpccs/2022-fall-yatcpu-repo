@@ -30,6 +30,10 @@ class CPU extends Module {
   val csr_regs = Module(new CSR)
   val clint = Module(new CLINT)
 
+  io.regs_debug_read_data := regs.io.debug_read_data
+  io.csr_regs_debug_read_data := csr_regs.io.debug_reg_read_data
+  regs.io.debug_read_address := io.regs_debug_read_address
+  csr_regs.io.debug_reg_read_address := io.csr_regs_debug_read_address
 
   io.deviceSelect := mem.io.memory_bundle.address(Parameters.AddrBits - 1, Parameters.AddrBits - Parameters.SlaveDeviceCountBits)
 
@@ -47,8 +51,6 @@ class CPU extends Module {
   regs.io.read_address1 := id.io.regs_reg1_read_address
   regs.io.read_address2 := id.io.regs_reg2_read_address
 
-  regs.io.debug_read_address := io.debug_read_address
-  io.debug_read_data := regs.io.debug_read_data
 
   id.io.instruction := inst_fetch.io.instruction
 
