@@ -197,7 +197,7 @@ class InstructionDecode extends Module {
   io.ex_reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
     (opcode === Instructions.jal) || (opcode === Instructions.jalr) || (opcode === Instructions.csr)
-  io.ex_reg_write_address := io.instruction(11, 7)
+  io.ex_reg_write_address := rd
   io.ex_csr_address := io.instruction(31, 20)
   io.ex_csr_write_enable := (opcode === Instructions.csr) && (
     funct3 === InstructionsTypeCSR.csrrw || funct3 === InstructionsTypeCSR.csrrwi ||

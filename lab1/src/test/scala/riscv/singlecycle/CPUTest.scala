@@ -84,7 +84,7 @@ class FibonacciTest extends AnyFlatSpec with ChiselScalatestTester {
 
       c.io.mem_debug_read_address.poke(4.U)
       c.clock.step()
-      c.io.mem_debug_read_data.expect(56.U)
+      c.io.mem_debug_read_data.expect(55.U)
     }
   }
 }
