@@ -45,17 +45,17 @@ class Execute extends Module {
   alu_ctrl.io.opcode := opcode
   alu_ctrl.io.funct3 := funct3
   alu_ctrl.io.funct7 := funct7
-  alu.io.func := alu_ctrl.io.alu_funct
-  alu.io.op1 := Mux(
-    io.aluop1_source === ALUOp1Source.InstructionAddress,
-    io.instruction_address,
-    io.reg1_data,
-  )
-  alu.io.op2 := Mux(
-    io.aluop2_source === ALUOp2Source.Immediate,
-    io.immediate,
-    io.reg2_data,
-  )
+
+  // lab1(Execute)
+
+
+
+
+
+
+
+  // lab1(Execute) end
+
   io.mem_alu_result := alu.io.result
   io.if_jump_flag := opcode === Instructions.jal ||
     (opcode === Instructions.jalr) ||

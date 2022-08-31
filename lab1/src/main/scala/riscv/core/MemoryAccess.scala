@@ -67,6 +67,7 @@ class MemoryAccess extends Module {
           mem_address_index === 0.U,
           Cat(Fill(16, data(15)), data(15, 0)),
           Cat(Fill(16, data(31)), data(31, 16))
+
         ),
         InstructionsTypeL.lhu -> Mux(
           mem_address_index === 0.U,
