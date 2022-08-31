@@ -128,7 +128,6 @@ object ALUOp2Source {
 object RegWriteSource {
   val ALUResult = 0.U(2.W)
   val Memory = 1.U(2.W)
-  val CSR = 2.U(2.W)
   val NextInstructionAddress = 3.U(2.W)
 }
 
@@ -176,22 +175,18 @@ class InstructionDecode extends Module {
     ALUOp1Source.InstructionAddress,
     ALUOp1Source.Register
   )
-  io.ex_aluop2_source := Mux(
-    opcode === InstructionTypes.RM,
-    ALUOp2Source.Register,
-    ALUOp2Source.Immediate
-  )
-  io.memory_read_enable := opcode === InstructionTypes.L
-  io.memory_write_enable := opcode === InstructionTypes.S
-  io.wb_reg_write_source := MuxLookup(
-    opcode,
-    RegWriteSource.ALUResult,
-    IndexedSeq(
-      InstructionTypes.L -> RegWriteSource.Memory,
-      Instructions.jal -> RegWriteSource.NextInstructionAddress,
-      Instructions.jalr -> RegWriteSource.NextInstructionAddress
-    )
-  )
+
+  // lab1(InstuctionDecode)
+
+
+
+
+
+
+
+
+  // lab1(InstructionDecode) end
+
   io.reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
     (opcode === Instructions.jal) || (opcode === Instructions.jalr)
