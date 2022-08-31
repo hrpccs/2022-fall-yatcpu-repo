@@ -71,6 +71,8 @@ class CLINT extends Module {
 
     val csr_bundle = new CSRDirectAccessBundle
   })
+
+  //lab2(CLINTCSR)
   val interrupt_enable = io.csr_bundle.mstatus(3)
   val instruction_address = Mux(
     io.jump_flag,
@@ -117,41 +119,4 @@ class CLINT extends Module {
     io.interrupt_handler_address := 0.U
   }
 
-  //lab2(CLINTCSR)
-  /*
-  val interrupt_enable =
-
-    when(io.interrupt_flag =/= InterruptStatus.None && interrupt_enable) {
-      //lab2(CLINTCSR)
-      /*
-      io.csr_bundle.mstatus_write_data := mstatus_disable_interrupt
-      io.csr_bundle.mepc_write_data := instruction_address
-      io.csr_bundle.mcause_write_data := Mux(io.interrupt_flag(0), 0x80000007L.U, 0x8000000BL.U)
-      io.csr_bundle.direct_write_enable := true.B
-      io.interrupt_assert := true.B
-      io.interrupt_handler_address := io.csr_bundle.mtvec
-       */
-    }.elsewhen(io.instruction === InstructionsRet.mret) {
-      //lab2(CLINTCSR)
-      /*
-      io.csr_bundle.mstatus_write_data := mstatus_recover_interrupt
-      io.csr_bundle.mepc_write_data := io.csr_bundle.mepc
-      io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
-      io.csr_bundle.direct_write_enable := true.B
-      io.interrupt_assert := true.B
-      io.interrupt_handler_address := io.csr_bundle.mepc
-       */
-    }.otherwise {
-      //lab2(CLINTCSR)
-      /*
-      io.csr_bundle.mstatus_write_data := io.csr_bundle.mstatus
-      io.csr_bundle.mepc_write_data := io.csr_bundle.mepc
-      io.csr_bundle.mcause_write_data := io.csr_bundle.mcause
-      io.csr_bundle.direct_write_enable := false.B
-      io.interrupt_assert := false.B
-      io.interrupt_handler_address := 0.U
-       */
-    }
-
-   */
 }

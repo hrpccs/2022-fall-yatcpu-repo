@@ -71,13 +71,6 @@ class CSR extends Module {
   io.debug_reg_read_data := MuxLookup(io.debug_reg_read_address, 0.U,regLUT)
 
   //lab2(CLINTCSR)
-  //what data should be passed from csr to clint (Note: what should clint see is the next state of the CPU)
-  /*
-  io.clint_access_bundle.mstatus :=
-  io.clint_access_bundle.mtvec :=
-  io.clint_access_bundle.mcause :=
-  io.clint_access_bundle.mepc :=
-  */
   io.clint_access_bundle.mstatus := Mux(io.reg_write_enable_id && io.reg_write_address_id === CSRRegister.MSTATUS, io.reg_write_data_ex, mstatus)
   io.clint_access_bundle.mtvec := Mux(io.reg_write_enable_id && io.reg_write_address_id === CSRRegister.MTVEC, io.reg_write_data_ex, mtvec)
   io.clint_access_bundle.mcause := Mux(io.reg_write_enable_id && io.reg_write_address_id === CSRRegister.MCAUSE, io.reg_write_data_ex, mcause)

@@ -82,7 +82,4 @@ class Execute extends Module {
     InstructionsTypeCSR.csrrci -> io.csr_reg_read_data.&((~Cat(0.U(27.W), uimm)).asUInt),
     InstructionsTypeCSR.csrrsi -> io.csr_reg_read_data.|(Cat(0.U(27.W), uimm)),
   ))
-  /*
-  io.csr_reg_write_data :=
-  */
 }
