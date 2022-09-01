@@ -128,6 +128,7 @@ object ALUOp2Source {
 object RegWriteSource {
   val ALUResult = 0.U(2.W)
   val Memory = 1.U(2.W)
+  val CSR = 2.U(2.W)
   val NextInstructionAddress = 3.U(2.W)
 }
 
@@ -176,8 +177,7 @@ class InstructionDecode extends Module {
     ALUOp1Source.Register
   )
 
-  // lab1(InstuctionDecode)
-
+  // lab1(InstructionDecode)
 
 
 
@@ -186,7 +186,6 @@ class InstructionDecode extends Module {
 
 
   // lab1(InstructionDecode) end
-
   io.reg_write_enable := (opcode === InstructionTypes.RM) || (opcode === InstructionTypes.I) ||
     (opcode === InstructionTypes.L) || (opcode === Instructions.auipc) || (opcode === Instructions.lui) ||
     (opcode === Instructions.jal) || (opcode === Instructions.jalr)
