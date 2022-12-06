@@ -26,7 +26,7 @@ class ExecuteTest extends AnyFlatSpec with ChiselScalatestTester{
     test(new Execute).withAnnotations(TestAnnotations.annos) { c =>
 
       // add test
-      c.io.instruction.poke(0x00a02223L.U) //x3 =  x2 + x1
+      c.io.instruction.poke(0x001101b3L.U) //x3 =  x2 + x1
       //c.io.immediate.poke(0.U)
       //c.io.aluop1_source.poke(0.U)
       //c.io.aluop2_source.poke(0.U)
