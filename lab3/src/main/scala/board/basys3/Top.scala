@@ -42,7 +42,7 @@ class Top extends Module {
   val mem = Module(new Memory(Parameters.MemorySizeInWords))
   val display = Module(new VGADisplay)
   val timer = Module(new Timer)
-  val uart = Module(new Uart(frequency = 125000000, baudRate = 115200))
+  val uart = Module(new Uart(frequency = 100000000, baudRate = 115200))
   val dummy = Module(new Dummy)
 
   display.io.bundle <> dummy.io.bundle
