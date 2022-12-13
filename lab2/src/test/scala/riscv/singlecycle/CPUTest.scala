@@ -152,7 +152,7 @@ class SimpleTrapTest extends AnyFlatSpec with ChiselScalatestTester {
       c.io.csr_regs_debug_read_data.expect(0x80000007L.U)
       c.io.mem_debug_read_address.poke(0x4.U)
       c.clock.step()
-      c.io.mem_debug_read_data.expect(0x2020L.U)
+      c.io.mem_debug_read_data.expect(0x2022L.U)
     }
   }
 }
