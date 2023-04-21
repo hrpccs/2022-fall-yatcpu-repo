@@ -137,7 +137,7 @@ class Execute extends Module {
     val mask = (0xFFFFFFFFL.U >> io.instruction(24, 20)).asUInt
     io.regs_write_data := alu.io.result
     when(funct3 === InstructionsTypeI.sri) {
-      when(funct7(5).asBool()) {
+      when(funct7(5).asBool) {
         io.regs_write_data := alu.io.result & mask |
           (Fill(32, io.op1(31)) & (~mask).asUInt).asUInt
       }
@@ -149,7 +149,7 @@ class Execute extends Module {
       val mask = (0xFFFFFFFFL.U >> io.reg2_data(4, 0)).asUInt
       io.regs_write_data := alu.io.result
       when(funct3 === InstructionsTypeR.sr) {
-        when(funct7(5).asBool()) {
+        when(funct7(5).asBool) {
           io.regs_write_data := alu.io.result & mask |
             (Fill(32, io.op1(31)) & (~mask).asUInt).asUInt
         }
@@ -277,8 +277,8 @@ class Execute extends Module {
         InstructionsTypeB.bne -> (io.op1 =/= io.op2),
         InstructionsTypeB.bltu -> (io.op1 < io.op2),
         InstructionsTypeB.bgeu -> (io.op1 >= io.op2),
-        InstructionsTypeB.blt -> (io.op1.asSInt() < io.op2.asSInt()),
-        InstructionsTypeB.bge -> (io.op1.asSInt() >= io.op2.asSInt())
+        InstructionsTypeB.blt -> (io.op1.asSInt < io.op2.asSInt),
+        InstructionsTypeB.bge -> (io.op1.asSInt >= io.op2.asSInt)
       )
     )
     jump_address := Fill(32, io.ctrl_jump_flag) & (io.op1_jump + io.op2_jump)
