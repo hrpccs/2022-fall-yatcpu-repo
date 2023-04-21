@@ -347,16 +347,16 @@ class OSER10 extends Module {
       count,
       0.U,
       IndexedSeq(
-        0.U -> io.D0.asBool(),
-        1.U -> io.D1.asBool(),
-        2.U -> io.D2.asBool(),
-        3.U -> io.D3.asBool(),
-        4.U -> io.D4.asBool(),
-        5.U -> io.D5.asBool(),
-        6.U -> io.D6.asBool(),
-        7.U -> io.D7.asBool(),
-        8.U -> io.D8.asBool(),
-        9.U -> io.D9.asBool()
+        0.U -> io.D0.asBool,
+        1.U -> io.D1.asBool,
+        2.U -> io.D2.asBool,
+        3.U -> io.D3.asBool,
+        4.U -> io.D4.asBool,
+        5.U -> io.D5.asBool,
+        6.U -> io.D6.asBool,
+        7.U -> io.D7.asBool,
+        8.U -> io.D8.asBool,
+        9.U -> io.D9.asBool
       )
     )
     countnext := Mux(
