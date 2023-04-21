@@ -73,6 +73,7 @@ class TestTopModule(exeFilename: String) extends Module {
     cpu.io.csr_regs_debug_read_address := io.csr_regs_debug_read_address
     io.regs_debug_read_data := cpu.io.regs_debug_read_data
     io.csr_regs_debug_read_data := cpu.io.csr_regs_debug_read_data
+    io.pc_debug_read := cpu.io.instruction_address
   }
 
   mem.io.debug_read_address := io.mem_debug_read_address
