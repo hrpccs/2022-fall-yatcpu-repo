@@ -6,7 +6,7 @@ void trap_handler(void *epc, unsigned int cause){
 }
 
 int main(){
-    *((int*)0x4) = 0xDEEDBEAF;
+    *((int*)0x4) = 0xDEADBEEF;
     enable_interrupt();
     for(;;);
 }
